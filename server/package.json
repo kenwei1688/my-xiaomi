@@ -1,0 +1,14 @@
+{
+  "name": "lexiang-life-server",
+  "version": "3.0.0",
+  "description": "生活小秘 后端服务：零依赖 Node HTTP（API + 同源静态托管 + JSON 持久化 + 账号鉴权 + 云端提醒）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}

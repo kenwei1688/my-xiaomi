@@ -1,0 +1,27 @@
+# ========= 运行时数据 / 密钥 =========
+server/data/
+server/.env
+.env
+
+# ========= 依赖 =========
+node_modules/
+
+# ========= 构建产物 / 大二进制 =========
+*.apk
+*.ipa
+*.zip
+*.aab
+
+# ========= 平台工程目录（按需纳入，默认排除产物） =========
+android-app/.gradle/
+android-app/app/build/
+android-app/local.properties
+miniprogram/dist/
+
+# ========= 项目内部数据（非源码） =========
+.workbuddy/
+
+# ========= 临时文件 =========
+*~
+*.tmp
+._*

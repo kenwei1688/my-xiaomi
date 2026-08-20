@@ -1,0 +1,9 @@
+# 构建镜像时排除运行期生成与开发文件，避免把本地数据/日志带进镜像
+data/
+*.log
+node_modules/
+.git/
+.env
+npm-debug.log*
+Dockerfile
+.dockerignore

@@ -1,0 +1,23 @@
+<!-- custom-tab-bar/index.wxml -->
+<view class="tab-bar">
+  <view
+    class="tab-item {{item.isCenter ? 'center-tab' : ''}} {{selected === index ? 'active' : ''}}"
+    wx:for="{{list}}"
+    wx:key="index"
+    data-index="{{index}}"
+    bindtap="switchTab"
+  >
+    <!-- 小秘中心按钮特殊样式 -->
+    <block wx:if="{{item.isCenter}}">
+      <view class="center-btn">
+        <text class="center-emoji">{{item.emoji}}</text>
+      </view>
+      <text class="tab-text center-text">{{item.text}}</text>
+    </block>
+    <!-- 普通按钮 -->
+    <block wx:else>
+      <text class="tab-emoji {{selected === index ? 'emoji-active' : ''}}">{{item.emoji}}</text>
+      <text class="tab-text {{selected === index ? 'text-active' : ''}}">{{item.text}}</text>
+    </block>
+  </view>
+</view>

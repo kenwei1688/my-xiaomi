@@ -1,0 +1,12 @@
+{
+  "name": "lexiang-life",
+  "version": "1.0.5",
+  "private": true,
+  "description": "生活小秘 - 单进程同源部署（Node API + 静态 H5 前端）",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

@@ -1,0 +1,236 @@
+<!-- pages/home/home.wxml -->
+<view class="page">
+  <!-- 自定义状态栏占位 -->
+  <view class="status-bar-placeholder" style="height: {{statusBarHeight}}px;"></view>
+
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+
+    <!-- 搜索栏 -->
+    <view class="home-search-bar">
+      <view class="location-tag">
+        <text class="loc-emoji">📍</text>
+        <text class="loc-text">{{location}}</text>
+      </view>
+      <view class="search-input" bindtap="toggleSearch">
+        <text class="search-emoji">🔍</text>
+        <text class="search-placeholder">搜索美食、足疗、景点...</text>
+      </view>
+      <view class="search-btn" bindtap="toggleSearch">搜索</view>
+    </view>
+
+    <!-- 分类入口 -->
+    <view class="category-grid">
+      <view
+        class="category-item"
+        wx:for="{{categories}}"
+        wx:key="name"
+        data-name="{{item.name}}"
+        bindtap="onCategoryTap"
+      >
+        <view class="cat-icon" style="background:{{item.bg}};">
+          <text class="cat-emoji">{{item.emoji}}</text>
+        </view>
+        <text class="cat-label">{{item.name}}</text>
+      </view>
+    </view>
+
+    <!-- 热门轮播 -->
+    <view class="section-header">
+      <text class="section-title">热门推荐</text>
+      <text class="more-link">查看全部 ›</text>
+    </view>
+    <swiper
+      class="banner-swiper"
+      indicator-dots="{{false}}"
+      autoplay="{{true}}"
+      interval="3500"
+      circular="{{true}}"
+      bindchange="onBannerChange"
+    >
+      <swiper-item
+        wx:for="{{banners}}"
+        wx:key="title"
+        data-title="{{item.title}}"
+        bindtap="onBannerTap"
+      >
+        <view class="banner-slide" style="background:{{item.bg}};">
+          <view class="banner-overlay"></view>
+          <view class="banner-content">
+            <view class="banner-top">
+              <text class="banner-emoji">{{item.emoji}}</text>
+              <text class="banner-tag">{{item.tag}}</text>
+            </view>
+            <text class="banner-title">{{item.title}}</text>
+            <text class="banner-subtitle">{{item.subtitle}}</text>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+    <!-- 自定义指示点 -->
+    <view class="banner-dots">
+      <view
+        class="banner-dot {{currentBanner === index ? 'active' : ''}}"
+        wx:for="{{banners}}"
+        wx:key="title"
+      ></view>
+    </view>
+
+    <!-- 附近热门商家 -->
+    <view class="section-header">
+      <text class="section-title">附近热门</text>
+      <text class="more-link">更多商家 ›</text>
+    </view>
+    <view class="merchant-list">
+      <view
+        class="merchant-card"
+        wx:for="{{merchants}}"
+        wx:key="name"
+        data-name="{{item.name}}"
+        bindtap="onMerchantTap"
+      >
+        <view class="merchant-img" style="background:{{item.bg}};">
+          <text class="merchant-emoji">{{item.emoji}}</text>
+          <view class="merchant-tags-overlay">
+            <text
+              class="merchant-tag"
+              wx:for="{{item.tags}}"
+              wx:for-item="tag"
+              wx:key="text"
+              style="background:{{tag.color}};"
+            >{{tag.text}}</text>
+          </view>
+          <view class="merchant-status {{item.isOpen ? 'open' : 'closed'}}">
+            {{item.isOpen ? '营业中' : '已打烊'}}
+          </view>
+        </view>
+        <view class="merchant-body">
+          <text class="merchant-name">{{item.name}}</text>
+          <view class="merchant-meta">
+            <text class="merchant-rating">⭐ {{item.rating}}</text>
+            <text class="meta-div">|</text>
+            <text class="merchant-distance">{{item.distance}}</text>
+            <text class="meta-div">|</text>
+            <text class="merchant-price-tag">人均¥{{item.avgPrice}}</text>
+            <text class="meta-div">|</text>
+            <text class="merchant-sold">{{item.soldCount}}</text>
+          </view>
+          <view class="merchant-cuisine">
+            <text>{{item.cuisine}} · 📍 {{item.address}}</text>
+          </view>
+          <view class="merchant-hours">
+            <text class="{{item.isOpen ? 'hours-open' : 'hours-closed'}}">●</text>
+            <text> {{item.hours}}</text>
+          </view>
+          <view class="merchant-promo">
+            <text
+              class="promo-tag"
+              wx:for="{{item.tags}}"
+              wx:for-item="tag"
+              wx:for-index="tagIdx"
+              wx:if="{{tagIdx > 0}}"
+              wx:key="text"
+            >{{tag.text}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 特价美食 -->
+    <view class="section-header">
+      <text class="section-title">🔥 特价美食</text>
+      <text class="more-link">全部优惠 ›</text>
+    </view>
+    <scroll-view scroll-x class="deal-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="deal-cards">
+        <view
+          class="deal-card"
+          wx:for="{{deals}}"
+          wx:key="title"
+          data-title="{{item.title}}"
+          bindtap="onDealTap"
+        >
+          <view class="deal-img" style="background:{{item.bg}};">
+            <text class="deal-emoji">{{item.emoji}}</text>
+            <view class="deal-badge">{{item.badge}}</view>
+          </view>
+          <view class="deal-body">
+            <text class="deal-title">{{item.title}}</text>
+            <text class="deal-sold">已售{{item.sold}}</text>
+            <view class="deal-price">
+              <text class="deal-price-now">¥{{item.price}}</text>
+              <text class="deal-price-old">¥{{item.oldPrice}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 限时秒杀 -->
+    <view class="section-header">
+      <text class="section-title">⚡ 限时秒杀</text>
+      <view class="flash-timer">{{flashTimer}}</view>
+    </view>
+    <scroll-view scroll-x class="flash-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="flash-list">
+        <view
+          class="flash-item"
+          wx:for="{{flashSales}}"
+          wx:key="title"
+          data-title="{{item.title}}"
+          bindtap="onFlashTap"
+        >
+          <view class="flash-img" style="background:{{item.bg}};">
+            <text class="flash-emoji">{{item.emoji}}</text>
+          </view>
+          <view class="flash-body">
+            <text class="flash-title">{{item.title}}</text>
+            <view class="flash-price-row">
+              <text class="flash-price">¥{{item.price}}</text>
+              <text class="flash-orig">¥{{item.origPrice}}</text>
+            </view>
+            <view class="flash-progress">
+              <view class="flash-progress-bar" style="width:{{item.progress}}%;"></view>
+              <text class="flash-progress-text">已抢{{item.progress}}%</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view style="height: 140rpx;"></view>
+  </scroll-view>
+
+  <!-- 搜索弹层 -->
+  <view class="search-overlay {{showSearch ? 'show' : ''}}" catchtap="toggleSearch">
+    <view class="search-panel" catchtap="">
+      <view class="search-panel-header">
+        <view class="search-panel-input">
+          <text class="search-emoji">🔍</text>
+          <input
+            type="text"
+            placeholder="搜索美食、足疗、景点..."
+            value="{{searchValue}}"
+            bindinput="onSearchInput"
+            bindconfirm="doSearch"
+            focus="{{showSearch}}"
+          />
+        </view>
+        <text class="search-cancel" catchtap="toggleSearch">取消</text>
+      </view>
+      <view class="search-hot">
+        <text class="search-hot-title">热门搜索</text>
+        <view class="search-hot-tags">
+          <view
+            class="search-hot-tag {{index < 3 ? 'hot' : ''}}"
+            wx:for="{{hotSearches}}"
+            wx:key="*this"
+            data-tag="{{item}}"
+            bindtap="searchTag"
+          >
+            <text wx:if="{{index < 3}}">🔥 </text>{{item}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

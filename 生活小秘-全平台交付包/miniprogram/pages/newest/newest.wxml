@@ -1,0 +1,110 @@
+<!-- pages/newest/newest.wxml -->
+<view class="page">
+  <view class="status-bar-placeholder" style="height: {{statusBarHeight}}px;"></view>
+
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+
+    <!-- 头部 -->
+    <view class="newest-header">
+      <text class="page-title">上新</text>
+      <text class="page-subtitle">发现身边新品好去处</text>
+    </view>
+
+    <!-- 筛选标签 -->
+    <scroll-view scroll-x class="filter-bar" enhanced show-scrollbar="{{false}}">
+      <view class="filter-list">
+        <view
+          class="filter-item {{activeFilter === item ? 'active' : ''}}"
+          wx:for="{{filters}}"
+          wx:key="*this"
+          data-filter="{{item}}"
+          bindtap="onFilterTap"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+
+    <!-- 新品动态流 -->
+    <view class="newest-feed" wx:if="{{posts.length > 0}}">
+      <view class="newest-post" wx:for="{{posts}}" wx:key="index" wx:for-index="idx">
+        <!-- 用户信息 -->
+        <view class="post-header">
+          <view class="post-avatar" style="background:{{item.userBg}};">
+            <text class="post-avatar-emoji">{{item.userEmoji}}</text>
+          </view>
+          <view class="post-user-info">
+            <text class="post-username">{{item.user}}</text>
+            <text class="post-time">{{item.time}}</text>
+          </view>
+          <view class="post-official-tag" wx:if="{{item.isOfficial}}">官方新品</view>
+        </view>
+
+        <!-- 图片 -->
+        <view class="post-images img-count-{{item.imgCount}}">
+          <view
+            class="post-img"
+            wx:for="{{item.images}}"
+            wx:for-item="img"
+            wx:key="index"
+            style="background:{{img.bg}};"
+          >
+            <text class="post-img-emoji">{{img.emoji}}</text>
+          </view>
+        </view>
+
+        <!-- 内容 -->
+        <view class="post-content">
+          <text class="post-title">{{item.title}}</text>
+          <text class="post-desc">{{item.desc}}</text>
+          <view class="post-tags">
+            <text class="post-tag" wx:for="{{item.tags}}" wx:for-item="t" wx:key="*this">{{t}}</text>
+          </view>
+          <view class="post-deal">
+            <view class="post-deal-price">
+              <text class="now">{{item.price === 0 ? '免费体验' : '¥' + item.price}}</text>
+              <text class="old" wx:if="{{item.oldPrice}}">¥{{item.oldPrice}}</text>
+            </view>
+            <view class="post-deal-btn" data-index="{{idx}}" bindtap="onBuyTap">
+              {{item.price === 0 ? '免费体验' : '立即抢购'}}
+            </view>
+          </view>
+        </view>
+
+        <!-- 互动 -->
+        <view class="post-actions">
+          <view
+            class="post-action {{item.liked ? 'liked' : ''}}"
+            data-index="{{idx}}"
+            bindtap="toggleLike"
+          >
+            <text class="action-emoji">{{item.liked ? '❤️' : '🤍'}}</text>
+            <text class="action-count">{{item.likes}}</text>
+          </view>
+          <view class="post-action" data-index="{{idx}}" bindtap="toggleComment">
+            <text class="action-emoji">💬</text>
+            <text class="action-count">{{item.commentCount}}</text>
+          </view>
+          <view class="post-action" bindtap="onShareTap">
+            <text class="action-emoji">🔗</text>
+            <text class="action-count">分享</text>
+          </view>
+        </view>
+
+        <!-- 评论 -->
+        <view class="post-comments" wx:if="{{item.showComments}}">
+          <view class="post-comment" wx:for="{{item.comments}}" wx:for-item="c" wx:key="index">
+            <text class="comment-user">{{c.user}}：</text>
+            <text class="comment-text">{{c.text}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">该分类暂无新品动态</text>
+    </view>
+
+    <view style="height: 140rpx;"></view>
+  </scroll-view>
+</view>

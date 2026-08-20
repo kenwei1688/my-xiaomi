@@ -1,0 +1,322 @@
+/* pages/profile/profile.wxss */
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.status-bar-placeholder {
+  height: var(--status-bar-height, 44rpx);
+  background: transparent;
+}
+
+.page-scroll {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 用户信息卡片 */
+.profile-header {
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-bg {
+  height: 280rpx;
+  background: linear-gradient(135deg, #FF6B35, #FF9A56);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+}
+
+.profile-user-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 60rpx 24rpx 24rpx;
+}
+
+.profile-avatar {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 6rpx solid rgba(255,255,255,0.4);
+  flex-shrink: 0;
+}
+
+.profile-avatar-emoji {
+  font-size: 60rpx;
+}
+
+.profile-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.profile-level {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 12rpx;
+}
+
+.level-badge {
+  font-size: 20rpx;
+  color: #fff;
+  background: rgba(255,255,255,0.25);
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  font-weight: 600;
+}
+
+.level-text {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.9);
+}
+
+.profile-stats {
+  display: flex;
+  gap: 32rpx;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stat-label {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.8);
+}
+
+.profile-edit-btn {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.edit-icon {
+  font-size: 24rpx;
+}
+
+/* 资产卡片 */
+.profile-assets {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: #fff;
+  margin: 0 24rpx;
+  border-radius: 20rpx;
+  padding: 32rpx 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+  margin-bottom: 16rpx;
+}
+
+.asset-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.asset-num {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #FF6B35;
+  margin-bottom: 4rpx;
+}
+
+.asset-label {
+  font-size: 22rpx;
+  color: #9B9B9B;
+}
+
+.asset-divider {
+  width: 1rpx;
+  height: 60rpx;
+  background: #E5E5EA;
+}
+
+/* Section */
+.profile-section {
+  margin: 0 24rpx 16rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 8rpx 0;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.more-link {
+  font-size: 24rpx;
+  color: #9B9B9B;
+}
+
+/* 订单管理 */
+.order-grid {
+  display: flex;
+  justify-content: space-around;
+  padding: 8rpx 16rpx 24rpx;
+}
+
+.order-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.order-icon-wrap {
+  position: relative;
+}
+
+.order-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-emoji {
+  font-size: 40rpx;
+}
+
+.order-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  text-align: center;
+  background: #FF3B30;
+  color: #fff;
+  font-size: 18rpx;
+  border-radius: 16rpx;
+  padding: 0 8rpx;
+  font-weight: 600;
+}
+
+.order-label {
+  font-size: 24rpx;
+  color: #1A1A1A;
+}
+
+/* 功能入口 */
+.func-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8rpx 16rpx 24rpx;
+}
+
+.func-item {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 16rpx 0;
+}
+
+.func-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.func-emoji {
+  font-size: 36rpx;
+}
+
+.func-label {
+  font-size: 22rpx;
+  color: #1A1A1A;
+}
+
+/* 设置列表 */
+.settings-list {
+  padding: 0 24rpx 8rpx;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F7;
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setting-emoji {
+  font-size: 26rpx;
+}
+
+.setting-label {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1A1A1A;
+}
+
+.setting-value {
+  font-size: 24rpx;
+  color: #9B9B9B;
+}
+
+.setting-arrow {
+  font-size: 32rpx;
+  color: #C7C7CC;
+}

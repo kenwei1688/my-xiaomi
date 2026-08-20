@@ -1,0 +1,10 @@
+# Railway 只部署运行所需文件，排除无关的本地构建/大文件
+android-app/
+miniprogram/
+deploy/
+生活小秘-全平台交付包/
+*.apk
+*.zip
+node_modules/
+data/
+.env
