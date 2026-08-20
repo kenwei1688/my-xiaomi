@@ -151,7 +151,19 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/health' && method === 'GET') {
         const counts = db.collectionCounts();
         const docsTotal = Object.values(counts).reduce((a, b) => a + b, 0);
-        return sendJSON(res, 200, { status: 'ok', time: new Date().toISOString(), backend: db.backendName(), docsTotal, counts, anon: db.anonUser() });
+        // 文件系统诊断：数据目录内容 + 容器挂载状态
+        let fsinfo = null;
+        try {
+          const dir = process.env.DATA_DIR || path.join(__dirname, 'data');
+          const files = fs.readdirSync(dir).map((f) => {
+            const st = fs.statSync(path.join(dir, f));
+            return { f, size: st.size, mtime: st.mtime.toISOString() };
+          });
+          let mounts = 'n/a';
+          try { mounts = fs.readFileSync('/proc/mounts', 'utf8').split('\n').filter((l) => l.includes('/app') || l.includes('volume')).join(' | '); } catch (_) {}
+          fsinfo = { dir, files, mounts };
+        } catch (e) { fsinfo = { error: e.message }; }
+        return sendJSON(res, 200, { status: 'ok', time: new Date().toISOString(), backend: db.backendName(), docsTotal, counts, anon: db.anonUser(), fsinfo });
       }
       // 注册 / 登录
       if (p === '/api/auth/register' && method === 'POST') {
