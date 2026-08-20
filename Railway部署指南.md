@@ -45,7 +45,7 @@ railway domain
 部署完成后，终端/仪表盘会显示一个域名，例如 `https://lexiang-life.up.railway.app`。
 浏览器打开它即可访问「小秘」前端；打开 `https://<你的域名>/api/health` 应返回 `persistent:true` 等健康信息。
 
-> 后续每次改完代码，只需重新 `railway up` 即可更新线上。
+> **部署源已切换为 GitHub 自动部署（2026-08-20）**：服务源已连接到 `kenwei1688/my-xiaomi` 仓库的 `main` 分支，之后**推送 `main` 即自动部署**，不再需要 `railway up`。数据目录 `DATA_DIR` 已设为 `/app/server/data`（已对齐持久卷挂载点）。原持久卷处于 pending-deletion 待删状态（预计 2026-08-22 释放槽位），届时由自动任务挂载新卷恢复持久化；当前为内存空库，重部署不会丢配置，但会清空运行期数据，正式投产前请勿写入重要数据。
 
 ---
 
