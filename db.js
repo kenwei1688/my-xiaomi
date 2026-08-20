@@ -45,7 +45,8 @@ async function initSqlite() {
     ensureDir();
     const db = new DatabaseSync(SQLITE_FILE);
     db.exec(`
-      PRAGMA journal_mode=WAL;
+      PRAGMA journal_mode=DELETE;
+      PRAGMA synchronous=FULL;
       CREATE TABLE IF NOT EXISTS docs (
         id TEXT NOT NULL, user_id TEXT NOT NULL, type TEXT NOT NULL,
         data TEXT NOT NULL, created_at TEXT, PRIMARY KEY (id)
