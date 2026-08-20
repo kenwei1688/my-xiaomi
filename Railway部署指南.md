@@ -45,9 +45,9 @@ railway domain
 部署完成后，终端/仪表盘会显示一个域名，例如 `https://lexiang-life.up.railway.app`。
 浏览器打开它即可访问「小秘」前端；打开 `https://<你的域名>/api/health` 应返回 `persistent:true` 等健康信息。
 
-> **部署源已切换为 GitHub 自动部署（2026-08-20）**：服务源已连接到 `kenwei1688/my-xiaomi` 仓库的 `main` 分支。数据目录 `DATA_DIR` 已设为 `/app/server/data`（已对齐持久卷挂载点）。原持久卷处于 pending-deletion 待删状态（预计 2026-08-22 释放槽位），届时由自动任务挂载新卷恢复持久化；当前为内存空库，重部署不会丢配置，但会清空运行期数据，正式投产前请勿写入重要数据。
+> **部署源已切换为 GitHub 自动部署（2026-08-20 完成）**：服务源已连接到 `kenwei1688/my-xiaomi` 仓库的 `main` 分支，`git push` 到 `main` 即自动部署（已实测两次通过）。数据目录 `DATA_DIR` 已设为 `/app/server/data`（与卷挂载点对齐）。原持久卷 `2026-08-09-12-47-29-volume` 处于 pending-deletion 待删状态（硬删时间 `2026-08-22T02:58:55Z` = 10:58 +08），届时槽位释放后由定时任务 `automation-1787197826304`（8/22 12:00 +08）自动挂载新卷恢复持久化；当前为内存空库，重部署不会丢配置但会清空运行期数据，**正式投产前请勿写入重要账号/数据**。
 >
-> **push-to-deploy 已生效（2026-08-20 17:41 确认）**：17:30、17:36 两次推送均未自动部署，根因为当初用 CLI 连仓库时未注册 GitHub push webhook（仅点 Enable 不够）。17:39 在 CLI 断开并重连服务源（`railway service source disconnect` → `connect`）后重新注册了 webhook；17:41 推送 commit 后 Railway 自动出新部署（f60f9326 → 135a80f2），`/api/health` 返回 200。**现已是推送 `main` 即自动部署**，之后改代码直接 `git push` 即可上线，无需 `railway up`。
+> **push-to-deploy 已生效（2026-08-20 17:41 确认）**：17:30、17:36 两次推送均未自动部署，根因为当初用 CLI 连仓库时未注册 GitHub push webhook（仅点 Enable 不够）。17:39 在 CLI 断开并重连服务源（`railway service source disconnect` → `connect`）后重新注册了 webhook；17:41 推送 commit 后 Railway 自动出新部署（f60f9326、随后 ec362808），`/api/health` 返回 200。**现已是推送 `main` 即自动部署**，之后改代码直接 `git push` 即可上线，无需 `railway up`。
 
 ---
 
@@ -84,7 +84,7 @@ Railway 的容器文件系统**默认是临时的**——每次部署/重启，`
 | `PORT` | Railway 自动注入 | 不要手动设；`server.js` 已监听 |
 | `JWT_SECRET` | 你用 `railway variables` 设置 | 登录 Token 签名密钥，**必须设置且足够随机** |
 | `JWT_TTL_DAYS` | 可选 | Token 有效期（天），默认 30 |
-| `DATA_DIR` | 可选 | 持久化数据目录，默认 `server/data`（相对路径）。云端部署挂卷时可设为卷挂载点（如 `/app/data`），实现重启不丢 |
+| `DATA_DIR` | 可选 | 持久化数据目录，默认 `server/data`（相对路径）。云端部署挂卷时可设为卷挂载点（本部署为 `/app/server/data`），实现重启不丢 |
 
 ---
 
@@ -101,28 +101,28 @@ Railway 的容器文件系统**默认是临时的**——每次部署/重启，`
 
 - **公网地址**：https://2026-08-09-12-47-29-production.up.railway.app （区域 ams，状态 Online）
 - **JWT_SECRET**：已设为 Railway 环境变量（随机生成，可在 Dashboard → Variables 查看/轮换）。
-- **DATA_DIR**：当前设为 `/app/data`（为换卷预留；详见下方）。
+- **DATA_DIR**：当前设为 `/app/server/data`（与卷挂载点对齐；详见下方）。
 - **测试账号 `railwaytest`**：已清除（登录返回 401）。
 
-### ⚠️ 当前持久化状态（重要，如实说明）
-- 早期那块卷被误 `delete` 进入 **48 小时软删除**（`pending-deletion`，硬删时间 `2026-08-22T02:58:55Z`）。Railway 在软删除期内**控制面仍把该卷记为"已挂载"**，且限制一个服务只能挂 1 块卷，因此：
-  - 期间**无法添加新卷**（报 `A volume is already mounted`）；
-  - 期间该卷的运行时挂载也已失效，导致当前容器**实际没有挂任何卷**，`DATA_DIR=/app/data` 指向临时盘——**现在数据只在内存，重部署会丢**。
-- 服务本身运行正常（health 200、前端 200），但**持久化在 8/22 前处于降级状态**。因库内无真实用户数据（仅测试账号且已清除），影响有限；请勿在 8/22 前用真实账号注册重要数据。
+### ⚠️ 当前持久化状态（重要，如实说明 · 2026-08-20 实测）
+- 原卷 `2026-08-09-12-47-29-volume` 处于 **pending-deletion 软删除**状态，硬删时间 `2026-08-22T02:58:55Z`（= 10:58 +08）。期间 Railway **控制面仍把该卷记为"已挂载"**，且限制一个服务只能挂 1 块卷，因此期间**无法添加新卷**（报 `A volume is already mounted`）。
+- 我们曾主动 `railway volume delete` 想提前释放槽位，但 Railway 异步删除**未真正生效**——卷仍在、仍占唯一槽位，所以 `add` 新卷一直被拒。
+- 关键实测：容器内 `/app/server/data` **不存在、`NO_MOUNT`**（控制面显示挂载但实例侧根本没挂上）。当前 `DATA_DIR=/app/server/data` 指向临时盘，**数据只在内存，重部署会丢**。
+- 服务本身运行正常（health 200、前端 200），但**持久化在 8/22 前处于降级状态**。库内无真实用户数据（仅测试账号且已清除），影响有限；**请勿在 8/22 前用真实账号注册重要数据**。
 
-### ✅ 8/22 自动换卷（已建定时任务）
-旧卷硬删后槽位释放，到时自动执行以下换卷（已用 automation 定时在 2026-08-22 跑，也可手动触发）：
+### ✅ 8/22 自动换卷（已建定时任务 automation-1787197826304）
+旧卷 8/22 硬删后槽位释放，定时任务会在 **2026-08-22 12:00 +08** 自动执行换卷（含 30 分钟重试循环兜底），也可手动提前触发：
 
 ```bash
 cd <工程根目录>
-# 槽位已释放，加一块全新的持久卷（挂 /app/data，与 DATA_DIR 一致）
-railway volume add -m /app/data
-# 重新部署，容器挂载新卷，server 用 DATA_DIR=/app/data 持久化
-railway up
-# 验证：卷内已生成 db.json + 注册→重部署→登录 不丢
-railway ssh -i ~/.ssh/lexiang_deploy "ls -la /app/data"
+# 槽位已释放后，加一块全新持久卷（挂 /app/server/data，与 DATA_DIR 一致）
+railway volume add -m /app/server/data
+# 重新部署，容器挂载新卷（GitHub 源用 redeploy，不要 railway up）
+railway service redeploy --yes
+# 验证挂载（空库时无 db.json 属正常，首次写入才生成）
+railway ssh "ls -la /app/server/data"
 ```
 
-> 若定时任务因 Railway 登录态过期未执行，在终端 `railway login` 后手动跑上面三条命令即可，1 分钟内恢复持久化。
+> 持久化验证：注册临时用户 → 触发重部署 → 重部署后登录该用户成功，即证明数据跨重部署不丢。若定时任务因 Railway 登录态过期未执行，终端 `railway login` 后手动跑上面命令即可，1 分钟内恢复持久化。
 
-- **更新代码**：改完本地后，在工程根目录重新 `railway up -y` 即可上线新版本。
+- **更新代码**：改完本地后 `git push origin main` 即自动部署上线（GitHub 源），无需 `railway up`。
