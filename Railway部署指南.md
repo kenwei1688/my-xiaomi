@@ -47,7 +47,7 @@ railway domain
 
 > **部署源已切换为 GitHub 自动部署（2026-08-20）**：服务源已连接到 `kenwei1688/my-xiaomi` 仓库的 `main` 分支。数据目录 `DATA_DIR` 已设为 `/app/server/data`（已对齐持久卷挂载点）。原持久卷处于 pending-deletion 待删状态（预计 2026-08-22 释放槽位），届时由自动任务挂载新卷恢复持久化；当前为内存空库，重部署不会丢配置，但会清空运行期数据，正式投产前请勿写入重要数据。
 >
-> **push-to-deploy 实测（2026-08-20 17:30 首次 / 17:36 复核 / 17:39 重连）**：17:30、17:36 两次推送后 Railway 均未自动部署，定位为 GitHub 仓库上的 push webhook 未注册（当初用 CLI 连仓库不会装推送钩子，仅点 Enable 不足以补上）。17:39 尝试在 CLI 断开并重连服务源以重新注册 webhook，正在再次推送实测。
+> **push-to-deploy 已生效（2026-08-20 17:41 确认）**：17:30、17:36 两次推送均未自动部署，根因为当初用 CLI 连仓库时未注册 GitHub push webhook（仅点 Enable 不够）。17:39 在 CLI 断开并重连服务源（`railway service source disconnect` → `connect`）后重新注册了 webhook；17:41 推送 commit 后 Railway 自动出新部署（f60f9326 → 135a80f2），`/api/health` 返回 200。**现已是推送 `main` 即自动部署**，之后改代码直接 `git push` 即可上线，无需 `railway up`。
 
 ---
 
