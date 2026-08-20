@@ -45,7 +45,9 @@ railway domain
 部署完成后，终端/仪表盘会显示一个域名，例如 `https://lexiang-life.up.railway.app`。
 浏览器打开它即可访问「小秘」前端；打开 `https://<你的域名>/api/health` 应返回 `persistent:true` 等健康信息。
 
-> **部署源已切换为 GitHub 自动部署（2026-08-20）**：服务源已连接到 `kenwei1688/my-xiaomi` 仓库的 `main` 分支，之后**推送 `main` 即自动部署**，不再需要 `railway up`。同日用户在 Railway 仪表盘完成 GitHub 账号绑定（Account Settings → Connect GitHub）并对该仓库授权，Railway GitHub App webhook 已安装。数据目录 `DATA_DIR` 已设为 `/app/server/data`（已对齐持久卷挂载点）。原持久卷处于 pending-deletion 待删状态（预计 2026-08-22 释放槽位），届时由自动任务挂载新卷恢复持久化；当前为内存空库，重部署不会丢配置，但会清空运行期数据，正式投产前请勿写入重要数据。
+> **部署源已切换为 GitHub 自动部署（2026-08-20）**：服务源已连接到 `kenwei1688/my-xiaomi` 仓库的 `main` 分支。数据目录 `DATA_DIR` 已设为 `/app/server/data`（已对齐持久卷挂载点）。原持久卷处于 pending-deletion 待删状态（预计 2026-08-22 释放槽位），届时由自动任务挂载新卷恢复持久化；当前为内存空库，重部署不会丢配置，但会清空运行期数据，正式投产前请勿写入重要数据。
+>
+> **push-to-deploy 实测（2026-08-20 17:30）**：推送 commit 后 Railway 未自动出新部署，说明 Railway GitHub App 的 push webhook 尚未真正生效。需在服务 **Settings → Source** 点击 **Enable**（启用自动部署），并到 GitHub `settings/installations` 确认 Railway App 有权访问 `kenwei1688/my-xiaomi`；完成后再次推送即可验证"push 即部署"。
 
 ---
 
