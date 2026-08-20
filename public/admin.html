@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>小秘智能体 · 管理后台</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #0f1115; color: #e6e9ef; padding: 32px 16px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #8b93a7; font-size: 13px; margin-bottom: 24px; }
+    .panel { background: #171a21; border: 1px solid #232733; border-radius: 14px; padding: 18px; margin-bottom: 18px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input { flex: 1; min-width: 200px; background: #0f1115; border: 1px solid #2a2f3a; color: #e6e9ef;
+      padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+    button { background: #3b82f6; color: #fff; border: 0; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+    button.ghost { background: #232733; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .card { background: #0f1115; border: 1px solid #232733; border-radius: 12px; padding: 16px; }
+    .card .n { font-size: 26px; font-weight: 700; color: #60a5fa; }
+    .card .l { font-size: 13px; color: #8b93a7; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #232733; }
+    th { color: #8b93a7; font-weight: 600; }
+    .msg { font-size: 13px; margin-top: 12px; color: #8b93a7; }
+    .err { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🛠️ 小秘智能体 · 管理后台</h1>
+    <div class="sub">查看全局用户与数据规模。需要管理员令牌（服务端环境变量 <code>ADMIN_TOKEN</code>；本地未设置时默认为 <code>dev-admin</code>）。</div>
+
+    <div class="panel">
+      <div class="row">
+        <input id="token" type="text" placeholder="管理员令牌（ADMIN_TOKEN）" value="dev-admin" />
+        <button id="loadBtn">刷新数据</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="panel" id="statsPanel" hidden>
+      <div class="cards" id="cards"></div>
+      <h3 style="margin:18px 0 8px;font-size:15px;">各集合数据量</h3>
+      <table>
+        <thead><tr><th>集合</th><th>条数</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    async function load() {
+      const token = $('#token').value.trim();
+      $('#msg').textContent = '加载中…'; $('#msg').className = 'msg';
+      try {
+        const res = await fetch('/api/admin/stats', { headers: { 'x-admin-token': token } });
+        const data = await res.json();
+        if (!res.ok) { $('#msg').textContent = '失败：' + (data.error || res.status); $('#msg').className = 'msg err'; return; }
+        $('#msg').textContent = '已加载（后端：' + data.backend + '）';
+        const labels = { reminders: '提醒', goals: '目标', itineraries: '行程', bookings: '订单', quickCommands: '快捷指令', notifications: '通知' };
+        $('#cards').innerHTML = `<div class="card"><div class="n">${data.users}</div><div class="l">注册用户</div></div>`;
+        const tb = $('#tbody'); tb.innerHTML = '';
+        let total = 0;
+        for (const [k, v] of Object.entries(data.collections)) {
+          total += v;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${labels[k] || k}</td><td>${v}</td>`;
+          tb.appendChild(tr);
+        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><b>合计</b></td><td><b>${total}</b></td>`;
+        tb.appendChild(tr);
+        $('#statsPanel').hidden = false;
+      } catch (e) { $('#msg').textContent = '请求失败：' + e.message; $('#msg').className = 'msg err'; }
+    }
+    $('#loadBtn').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>

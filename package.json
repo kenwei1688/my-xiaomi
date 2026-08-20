@@ -1,12 +1,21 @@
 {
-  "name": "lexiang-life",
-  "version": "1.0.5",
-  "private": true,
-  "description": "生活小秘 - 单进程同源部署（Node API + 静态 H5 前端）",
+  "name": "xiaomi-secretary",
+  "version": "1.0.0",
+  "description": "小秘智能体 - 一站式智能办事助手（可上线全栈 MVP，零外部依赖）",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
-    "start": "node server/server.js"
+    "start": "node start.js",
+    "dev": "node start.js",
+    "stub": "node dev/provider-stub.mjs"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=22.5"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1"
   }
 }

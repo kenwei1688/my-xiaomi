@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>小秘智能体 · 智能办事助手</title>
+  <meta name="theme-color" content="#0f1115" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="auth" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo">🤖</div>
+      <div class="auth-title">小秘智能体</div>
+      <div class="auth-sub">登录后，你的提醒 / 目标 / 行程 / 计划 / 日记将独立保存</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-mode="login">登录</button>
+        <button class="auth-tab" data-mode="register">注册</button>
+      </div>
+      <input id="authUser" placeholder="用户名" autocomplete="off" />
+      <input id="authPass" type="password" placeholder="密码（至少 4 位）" />
+      <button id="authSubmit" class="send">登录</button>
+      <div id="authMsg" class="auth-msg"></div>
+      <div class="auth-hint">不登录也可直接使用 —— 数据保存在本机匿名空间</div>
+    </div>
+  </div>
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🤖</span>
+        <div>
+          <div class="brand-name">小秘智能体</div>
+          <div class="brand-sub">一站式智能办事助手</div>
+        </div>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-view="home">🏠 首页</button>
+        <button class="tab" data-view="chat">💬 对话</button>
+        <button class="tab" data-view="me">📋 我的</button>
+        <button class="tab" data-view="calendar">📅 日历</button>
+        <button class="tab" data-view="cmd">⚡ 指令</button>
+        <button class="bell" id="bellBtn">🔔<span class="badge" id="bellBadge" hidden>0</span></button>
+        <button class="top-btn" id="installBtn" hidden>📲 安装</button>
+        <button class="top-btn" id="exportBtn" title="导出我的全部数据(JSON)">⤓ 导出</button>
+        <button class="top-btn" id="settingsBtn" title="服务器地址设置">⚙️ 设置</button>
+        <button class="top-btn" id="logoutBtn">👋 退出</button>
+      </nav>
+    </header>
+
+    <!-- 对话视图 -->
+    <section class="view" id="view-chat">
+      <div class="chat-head">
+        <span>用文字、语音或指令告诉我你的需求</span>
+        <label class="speak"><input type="checkbox" id="speakToggle" /> 朗读回复</label>
+        <label class="speak"><input type="checkbox" id="notifToggle" /> 桌面提醒</label>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="quick-replies" id="quickReplies"></div>
+      <div class="composer">
+        <button class="mic" id="micBtn" title="语音输入">🎤</button>
+        <input id="input" type="text" placeholder="例如：明天早上8点提醒我开会 / 帮我规划去成都3天行程 / 点午餐外卖" autocomplete="off" />
+        <button class="send" id="sendBtn">发送</button>
+      </div>
+      <div class="mic-status" id="micStatus" hidden>🎙️ 聆听中…说完自动发送</div>
+    </section>
+
+    <!-- 首页视图 -->
+    <section class="view active" id="view-home">
+      <div class="home-greet" id="homeGreet">👋 你好，我是你的智能小秘</div>
+      <div class="home-stats" id="homeStats"></div>
+      <div class="home-actions">
+        <button class="ha" data-act="reminder">⏰ 加提醒</button>
+        <button class="ha" data-act="itinerary">🧳 规划行程</button>
+        <button class="ha" data-act="goal">🎯 定目标</button>
+        <button class="ha" data-act="plan">📝 做计划</button>
+        <button class="ha" data-act="diary">📓 写日记</button>
+        <button class="ha" data-act="booking">🧾 去下单</button>
+      </div>
+      <div class="home-block">
+        <div class="hb-title">⏰ 今日与即将到来的提醒</div>
+        <div class="home-list" id="homeReminders"></div>
+      </div>
+      <div class="home-block">
+        <div class="hb-title">🧳 我的行程</div>
+        <div class="home-list" id="homeItineraries"></div>
+      </div>
+      <div class="home-block">
+        <div class="hb-title">📝 我的计划</div>
+        <div class="home-list" id="homePlans"></div>
+      </div>
+      <div class="home-block">
+        <div class="hb-title">📓 我的日记</div>
+        <div class="home-list" id="homeDiary"></div>
+      </div>
+      <div class="home-block provider-card" id="providerCard">
+        <div class="hb-title">🧩 下单通道（连接真实平台）</div>
+        <div class="provider-status" id="providerStatus"></div>
+        <details class="provider-help">
+          <summary>如何接入真实下单平台？</summary>
+          <p>当前为模拟通道（mock）。要打通真实外卖 / 酒店 / 车票 / 机票，需在<strong>服务端</strong>设置环境变量后重启：</p>
+          <pre>BOOKING_PROVIDER_FOOD=meituan
+MEITUAN_APP_KEY=你的美团Key
+MEITUAN_APP_SECRET=你的美团Secret
+
+BOOKING_PROVIDER_HOTEL=ctrip
+BOOKING_PROVIDER_TRAIN=ctrip
+BOOKING_PROVIDER_FLIGHT=ctrip
+CTRIP_APP_KEY=你的携程Key
+CTRIP_APP_SECRET=你的携程Secret</pre>
+          <p>真实平台通常需企业资质与应用审批；未配置密钥时系统会如实提示「下单未成功」，不会伪造订单。</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- 日历视图 -->
+    <section class="view" id="view-calendar">
+      <div class="cal-head">
+        <button class="cal-nav" id="calPrev">‹</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button class="cal-nav" id="calNext">›</button>
+      </div>
+      <div class="cal-week">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-detail" id="calDetail"></div>
+    </section>
+
+    <!-- 我的视图 -->
+    <section class="view" id="view-me">
+      <div class="subtabs" id="meSubtabs">
+        <button class="subtab active" data-me="reminders">⏰ 提醒</button>
+        <button class="subtab" data-me="goals">🎯 目标</button>
+        <button class="subtab" data-me="itineraries">🧳 行程</button>
+        <button class="subtab" data-me="plans">📝 计划</button>
+        <button class="subtab" data-me="diary">📓 日记</button>
+        <button class="subtab" data-me="bookings">🧾 订单</button>
+        <button class="subtab" data-me="notifications">🔔 通知</button>
+      </div>
+      <div class="me-list" id="meList"></div>
+    </section>
+
+    <!-- 指令视图 -->
+    <section class="view" id="view-cmd">
+      <div class="cmd-head">
+        <span>自定义快速指令：说出口令即可一键触发</span>
+        <button class="add-btn" id="addCmdBtn">+ 新建指令</button>
+      </div>
+      <div class="cmd-form" id="cmdForm" hidden>
+        <input id="cmdTitle" placeholder="指令名称，如：点午餐外卖" />
+        <input id="cmdTrigger" placeholder="触发口令，如：点午餐" />
+        <input id="cmdIcon" placeholder="图标 emoji，如：🍱" maxlength="2" />
+        <select id="cmdAction">
+          <option value="booking">下单（外卖/酒店/车票/机票）</option>
+          <option value="itinerary">规划行程</option>
+          <option value="reminder">添加提醒</option>
+          <option value="goal">添加目标</option>
+          <option value="plan">制定计划</option>
+          <option value="diary">写日记</option>
+          <option value="message">发送一段话</option>
+        </select>
+        <div id="cmdPayload"></div>
+        <div class="cmd-form-btns">
+          <button id="cmdSave" class="send">保存</button>
+          <button id="cmdCancel" class="ghost">取消</button>
+        </div>
+      </div>
+      <div class="cmd-list" id="cmdList"></div>
+    </section>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <!-- 服务器地址设置弹窗 -->
+  <div class="modal-mask" id="settingsModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <span>⚙️ 服务器地址</span>
+        <button class="modal-close" id="settingsClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">浏览器访问时留空即可（同源）。在手机 App / 壳内使用时，填写运行小秘的电脑局域网地址：</p>
+        <div class="srv-example">http://192.168.1.3:3100</div>
+        <input id="apiBaseInput" type="url" placeholder="http://192.168.1.3:3100" autocomplete="off" spellcheck="false" />
+        <p class="hint">填写后点「保存并测试」，小秘会尝试连接该地址并显示结果。换一台电脑/网络时，重新在这里修改即可，无需重新安装。</p>
+        <div class="srv-test" id="srvTestResult"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="ghost" id="settingsReset">恢复默认</button>
+        <button class="send" id="settingsSave">保存并测试</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
