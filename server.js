@@ -149,7 +149,9 @@ const server = http.createServer(async (req, res) => {
     try {
       // 健康检查（部署平台探活用）
       if (p === '/api/health' && method === 'GET') {
-        return sendJSON(res, 200, { status: 'ok', time: new Date().toISOString(), backend: db.backendName() });
+        const counts = db.collectionCounts();
+        const docsTotal = Object.values(counts).reduce((a, b) => a + b, 0);
+        return sendJSON(res, 200, { status: 'ok', time: new Date().toISOString(), backend: db.backendName(), docsTotal, counts, anon: db.anonUser() });
       }
       // 注册 / 登录
       if (p === '/api/auth/register' && method === 'POST') {
