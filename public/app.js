@@ -1,4 +1,4 @@
-// app.js — 小秘智能体前端逻辑（原生 JS，无构建）
+// app.js — 小秘吃喝玩乐生活平台（原生 JS，无构建）
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
@@ -17,8 +17,6 @@ function repeatLabel(r) {
   const map = { daily: '每天', weekday: '工作日', weekly: `每周${WK[r.repeatWeekday || 1]}`, monthly: `每月${r.repeatMonthDay}日`, yearly: '每年' };
   return map[r.repeat] || '';
 }
-
-// 取某品类当前生效的供应商名（兼容 /api/config 返回的对象或字符串）
 function providerLabel(type) {
   const p = APP_CONFIG.provider;
   if (!p) return 'mock';
@@ -32,9 +30,15 @@ const API_BASE_KEY = 'xm_api_base';
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
 function clearToken() { localStorage.removeItem(TOKEN_KEY); }
-// 服务器地址：默认同源（浏览器访问 localhost:3100 时留空即可）
-// App 壳（Android/iOS）内使用时，在「设置」里填写电脑局域网 IP，如 http://192.168.1.3:3100
-function getApiBase() { return (localStorage.getItem(API_BASE_KEY) || '').replace(/\/+$/, ''); }
+// 服务器地址：浏览器访问时默认同源（如 localhost:3100，留空即可）
+// App 壳（Android/iOS）内默认直连公网云端，装完即用
+const CLOUD_BASE = 'https://2026-08-09-12-47-29-production.up.railway.app';
+function getApiBase() {
+  const v = (localStorage.getItem(API_BASE_KEY) || '').trim().replace(/\/+$/, '');
+  if (v) return v;
+  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return CLOUD_BASE;
+  return '';
+}
 function setApiBase(v) { localStorage.setItem(API_BASE_KEY, (v || '').replace(/\/+$/, '')); }
 let authMode = 'login';
 let APP_CONFIG = { provider: 'mock', backend: 'json' };
@@ -53,7 +57,124 @@ async function api(method, path, body) {
   return data;
 }
 
-// ---------- 对话 ----------
+// ============================================================
+// 平台数据层（本地内容池，真实平台 API 接入后替换为服务端数据）
+// ============================================================
+const CATEGORIES = [
+  { id: 'food', name: '美食', icon: '🍜' },
+  { id: 'spa', name: '足疗按摩', icon: '💆' },
+  { id: 'taxi', name: '打车', icon: '🚕' },
+  { id: 'scenic', name: '景点游玩', icon: '🏞️' },
+  { id: 'travel', name: '旅游度假', icon: '🏖️' },
+  { id: 'fitness', name: '运动健身', icon: '🏋️' },
+  { id: 'ktv', name: 'KTV', icon: '🎤' },
+  { id: 'movie', name: '电影演出', icon: '🎬' }
+];
+const CAT_NAME = {};
+CATEGORIES.forEach((c) => { CAT_NAME[c.id] = c.name; });
+
+const BANNERS = [
+  { title: '夏日美食节 · 全场 5 折起', sub: '精选 200+ 家餐厅，新客立减 30 元', emoji: '🍱' },
+  { title: '周末去哪玩？深圳周边游', sub: '景点门票 9.9 起，亲子情侣都合适', emoji: '🏞️' },
+  { title: '下班放松 · 足疗按摩专场', sub: '养生馆新客体验价 68 元', emoji: '💆' },
+  { title: 'KTV 欢唱 3 小时仅 88 元', sub: '白天场更划算，约上朋友出发', emoji: '🎤' }
+];
+
+// 商家内容池：id / cat / name / dist(米) / rating / price(人均起) / tags / emoji / addr / hot(热度1-100) / sales
+const MERCHANTS = [
+  // 美食
+  { id: 'm1', cat: 'food', name: '川湘小馆', dist: 320, rating: 4.7, price: 58, tags: ['川菜', '湘菜', '辣'], emoji: '🌶️', addr: '科技园路 88 号', hot: 96, sales: 2300 },
+  { id: 'm2', cat: 'food', name: '点都德早茶', dist: 610, rating: 4.8, price: 76, tags: ['广式早茶', '虾饺', '老字号'], emoji: '🥟', addr: '深南大道 1098 号', hot: 92, sales: 4100 },
+  { id: 'm3', cat: 'food', name: '木屋烧烤', dist: 450, rating: 4.6, price: 85, tags: ['烧烤', '夜宵', '聚会'], emoji: '🍢', addr: '海岸城购物中心 B1', hot: 90, sales: 1800 },
+  { id: 'm4', cat: 'food', name: '椰子鸡火锅', dist: 780, rating: 4.5, price: 92, tags: ['椰子鸡', '火锅', '清淡'], emoji: '🥥', addr: '万象天地 4 楼', hot: 85, sales: 1200 },
+  { id: 'm5', cat: 'food', name: '海底捞火锅', dist: 1250, rating: 4.9, price: 118, tags: ['火锅', '服务好', '夜宵'], emoji: '🍲', addr: 'COCO Park 3 楼', hot: 98, sales: 5600 },
+  // 足疗按摩
+  { id: 'm6', cat: 'spa', name: '康悦足道', dist: 380, rating: 4.7, price: 128, tags: ['足疗', '全身SPA', '包间'], emoji: '🦶', addr: '创业路 66 号', hot: 88, sales: 980 },
+  { id: 'm7', cat: 'spa', name: '泰式按摩 SPA', dist: 860, rating: 4.6, price: 168, tags: ['泰式', '精油SPA', '古法'], emoji: '🧖', addr: '欢乐海岸 2 层', hot: 82, sales: 760 },
+  { id: 'm8', cat: 'spa', name: '中医推拿馆', dist: 540, rating: 4.8, price: 99, tags: ['推拿', '颈椎', '理疗'], emoji: '💆', addr: '海德三道 12 号', hot: 86, sales: 1350 },
+  { id: 'm9', cat: 'spa', name: '采耳养生馆', dist: 700, rating: 4.5, price: 68, tags: ['采耳', '头部SPA', '放松'], emoji: '👂', addr: '花园城 1 层', hot: 74, sales: 640 },
+  // 打车
+  { id: 'm10', cat: 'taxi', name: '滴滴出行', dist: 0, rating: 4.8, price: 15, tags: ['快车', '拼车', '一口价'], emoji: '🚕', addr: '全城覆盖', hot: 99, sales: 99999 },
+  { id: 'm11', cat: 'taxi', name: 'T3 出行', dist: 0, rating: 4.6, price: 14, tags: ['快车', '新人立减'], emoji: '🚖', addr: '全城覆盖', hot: 90, sales: 42000 },
+  { id: 'm12', cat: 'taxi', name: '曹操出行', dist: 0, rating: 4.7, price: 16, tags: ['专车', '新能源'], emoji: '🚘', addr: '全城覆盖', hot: 84, sales: 31000 },
+  { id: 'm13', cat: 'taxi', name: '哈啰顺风车', dist: 0, rating: 4.5, price: 20, tags: ['跨城', '便宜', '拼座'], emoji: '🚗', addr: '同城跨城', hot: 78, sales: 25000 },
+  // 景点游玩
+  { id: 'm14', cat: 'scenic', name: '深圳湾公园', dist: 900, rating: 4.7, price: 0, tags: ['免费', '海景', '骑行'], emoji: '🌊', addr: '滨海大道', hot: 95, sales: 50000 },
+  { id: 'm15', cat: 'scenic', name: '世界之窗', dist: 3200, rating: 4.6, price: 220, tags: ['微缩景观', '夜场', '亲子'], emoji: '🗼', addr: '深南大道 9037 号', hot: 91, sales: 15000 },
+  { id: 'm16', cat: 'scenic', name: '欢乐谷', dist: 4100, rating: 4.5, price: 230, tags: ['游乐场', '过山车', '夜场'], emoji: '🎢', addr: '侨城西街 18 号', hot: 88, sales: 18000 },
+  { id: 'm17', cat: 'scenic', name: '海上世界', dist: 2600, rating: 4.4, price: 0, tags: ['明华轮', '夜景', '酒吧街'], emoji: '🚢', addr: '太子路 22 号', hot: 76, sales: 9000 },
+  { id: 'm18', cat: 'scenic', name: '梧桐山', dist: 8500, rating: 4.6, price: 0, tags: ['爬山', '看日出', '免费'], emoji: '⛰️', addr: '罗湖区望桐路', hot: 82, sales: 12000 },
+  // 旅游度假
+  { id: 'm19', cat: 'travel', name: '东部华侨城', dist: 12000, rating: 4.5, price: 180, tags: ['度假区', '大侠谷', '茶溪谷'], emoji: '🏞️', addr: '盐田区大梅沙', hot: 84, sales: 7600 },
+  { id: 'm20', cat: 'travel', name: '大梅沙海滨公园', dist: 9800, rating: 4.4, price: 0, tags: ['海边', '玩水', '免费预约'], emoji: '🏖️', addr: '盐田区盐梅路', hot: 87, sales: 30000 },
+  { id: 'm21', cat: 'travel', name: '南澳西冲海滩', dist: 35000, rating: 4.7, price: 20, tags: ['原生态', '露营', '星空'], emoji: '🌌', addr: '大鹏新区南澳', hot: 83, sales: 5200 },
+  { id: 'm22', cat: 'travel', name: '观澜湖度假区', dist: 26000, rating: 4.6, price: 320, tags: ['高尔夫', '亲子', '温泉'], emoji: '⛳', addr: '龙华区观澜', hot: 72, sales: 3800 },
+  // 运动健身
+  { id: 'm23', cat: 'fitness', name: '超级猩猩', dist: 480, rating: 4.8, price: 89, tags: ['团课', '单车', '燃脂'], emoji: '🦍', addr: '万象天地 5 层', hot: 90, sales: 8900 },
+  { id: 'm24', cat: 'fitness', name: '一兆韦德', dist: 1200, rating: 4.5, price: 120, tags: ['器械', '游泳', '私教'], emoji: '🏋️', addr: '京基百纳 4 层', hot: 78, sales: 6600 },
+  { id: 'm25', cat: 'fitness', name: '乐刻健身', dist: 650, rating: 4.6, price: 39, tags: ['24小时', '月卡', '自助'], emoji: '💪', addr: '科技园中区', hot: 80, sales: 15000 },
+  { id: 'm26', cat: 'fitness', name: '岩时攀岩馆', dist: 2300, rating: 4.7, price: 98, tags: ['攀岩', '高空', '新手友好'], emoji: '🧗', addr: '华侨城创意园', hot: 70, sales: 2400 },
+  // KTV
+  { id: 'm27', cat: 'ktv', name: '纯K 量贩KTV', dist: 800, rating: 4.6, price: 88, tags: ['量贩', '自助餐', '下午场'], emoji: '🎤', addr: '海岸城东座 5 层', hot: 85, sales: 6800 },
+  { id: 'm28', cat: 'ktv', name: '温莎KTV', dist: 1500, rating: 4.7, price: 128, tags: ['豪华包厢', '酒水畅饮'], emoji: '🎶', addr: '福田中心区', hot: 80, sales: 5200 },
+  { id: 'm29', cat: 'ktv', name: '唱吧麦颂', dist: 1100, rating: 4.4, price: 66, tags: ['平价', '音响好'], emoji: '🎙️', addr: '南山大道 100 号', hot: 72, sales: 9000 },
+  { id: 'm30', cat: 'ktv', name: '星聚会KTV', dist: 1900, rating: 4.5, price: 108, tags: ['聚会', '生日派对'], emoji: '🪩', addr: '宝安中心区', hot: 74, sales: 4300 },
+  // 电影演出
+  { id: 'm31', cat: 'movie', name: '万达影城', dist: 700, rating: 4.7, price: 45, tags: ['IMAX', '激光厅', '爆米花'], emoji: '🎬', addr: '海雅缤纷城 6 层', hot: 92, sales: 20000 },
+  { id: 'm32', cat: 'movie', name: 'CGV 影城', dist: 950, rating: 4.6, price: 42, tags: ['4DX', '情侣座'], emoji: '🍿', addr: '来福士广场 4 层', hot: 86, sales: 15000 },
+  { id: 'm33', cat: 'movie', name: '开心麻花剧场', dist: 4200, rating: 4.8, price: 180, tags: ['话剧', '喜剧', '现场'], emoji: '🎭', addr: '深圳湾体育中心', hot: 88, sales: 3600 },
+  { id: 'm34', cat: 'movie', name: '后海汇 Livehouse', dist: 3000, rating: 4.5, price: 120, tags: ['演出', '乐队', '夜生活'], emoji: '🎸', addr: '后海大道 5 号', hot: 76, sales: 2800 }
+];
+
+// 特价优惠池
+const DEALS = [
+  { id: 'd1', title: '双人烧烤套餐 5 折', merchant: '木屋烧烤', cat: 'food', price: 99, orig: 198, sold: 320, badge: '限时5折' },
+  { id: 'd2', title: '早茶四人餐 8 款点心', merchant: '点都德', cat: 'food', price: 128, orig: 210, sold: 560, badge: '人气TOP' },
+  { id: 'd3', title: '足疗 60 分钟体验券', merchant: '康悦足道', cat: 'spa', price: 68, orig: 128, sold: 240, badge: '新客专享' },
+  { id: 'd4', title: '泰式按摩 90 分钟', merchant: '泰式按摩SPA', cat: 'spa', price: 128, orig: 268, sold: 180, badge: '立减140' },
+  { id: 'd5', title: '世界之窗夜场门票', merchant: '世界之窗', cat: 'scenic', price: 69, orig: 120, sold: 890, badge: '夜场特惠' },
+  { id: 'd6', title: '欢乐谷日场双人票', merchant: '欢乐谷', cat: 'scenic', price: 299, orig: 460, sold: 410, badge: '双人立减' },
+  { id: 'd7', title: 'KTV 下午场 3 小时', merchant: '纯K', cat: 'ktv', price: 88, orig: 216, sold: 720, badge: '超值' },
+  { id: 'd8', title: 'IMAX 电影双人套票', merchant: '万达影城', cat: 'movie', price: 79, orig: 130, sold: 1500, badge: '秒杀' }
+];
+
+// 上新动态池（社交种草）
+const POSTS = [
+  { id: 'p1', merchant: '木屋烧烤', avatar: '🍢', cat: 'food', time: '2 小时前', title: '🔥 新品上线：炭烤澳洲和牛串', content: '选用 M7 级和牛，炭火现烤，入口爆汁。每桌限点 2 份，先到先得！', price: 39, orig: 68, groupon: '双人套餐 9 折', likes: 128, comments: [{ u: '干饭人小张', t: '刚吃完，确实爆汁，冲！' }, { u: '深圳吃货', t: '周末去试试' }] },
+  { id: 'p2', merchant: '康悦足道', avatar: '🦶', cat: 'spa', time: '5 小时前', title: '✨ 全新中药足浴上线', content: '甄选 12 味草本药材，艾草+红花+老姜，祛湿驱寒，适合久坐上班族。', price: 88, orig: 158, groupon: '新客立减 30', likes: 86, comments: [{ u: '打工人小李', t: '上周体验了，颈椎舒服很多' }] },
+  { id: 'p3', merchant: '欢乐谷', avatar: '🎢', cat: 'scenic', time: '昨天', title: '🎡 全新项目：天空之眼摩天轮', content: '深圳最高摩天轮已开放！128 米高空俯瞰全城，夜场灯光超梦幻，情侣打卡必去。', price: 99, orig: 150, groupon: '夜场双人立减 40', likes: 356, comments: [{ u: '阿may', t: '夜景真的绝了，已二刷' }, { u: '摄影师老王', t: '出片率极高' }] },
+  { id: 'p4', merchant: '纯K', avatar: '🎤', cat: 'ktv', time: '昨天', title: '🎶 主题包厢「星空房」上新', content: '全息投影星空顶 + 环绕音响，生日聚会布置免费送，附赠果盘一份。', price: 168, orig: 328, groupon: '生日专享 5 折', likes: 95, comments: [{ u: '麦霸小陈', t: '音响是真的顶' }] },
+  { id: 'p5', merchant: '超级猩猩', avatar: '🦍', cat: 'fitness', time: '2 天前', title: '💦 新课首发：燃脂搏击 45min', content: '专业拳击教练带练，一节消耗 500 大卡，暴汗排毒，新手友好零门槛。', price: 69, orig: 99, groupon: '新客首节 5 折', likes: 210, comments: [{ u: '健身狂魔', t: '一节课瘦两斤的感觉' }] },
+  { id: 'p6', merchant: '万达影城', avatar: '🎬', cat: 'movie', time: '2 天前', title: '🍿 暑期档大片预售开启', content: '多部新片点映预售，IMAX 厅低至 39 元，爆米花可乐套餐同购立减 10 元。', price: 39, orig: 80, groupon: '预售特惠', likes: 430, comments: [{ u: '影迷阿强', t: '已锁定首映场' }] },
+  { id: 'p7', merchant: '泰式按摩SPA', avatar: '🧖', cat: 'spa', time: '3 天前', title: '🌿 古法泰式全身舒展上新', content: '泰国老师傅手法传承，配合香茅精油，放松肌肉紧张，缓解疲劳一流。', price: 168, orig: 298, groupon: '闺蜜双人同行 8 折', likes: 74, comments: [] },
+  { id: 'p8', merchant: '东部华侨城', avatar: '🏞️', cat: 'travel', time: '3 天前', title: '🏔️ 茶溪谷湿地花海开放', content: '千亩花海正值盛花期，景区新增小火车观光线路，亲子家庭套票上线。', price: 129, orig: 220, groupon: '亲子套票 6 折', likes: 150, comments: [{ u: '亲子游妈妈', t: '花海很出片，孩子玩得开心' }] }
+];
+
+// 本地状态：兴趣偏好 / 行为 / 点赞 / 评论
+const PREFS_KEY = 'xm_prefs';
+const BEHAV_KEY = 'xm_behav';
+const LIKES_KEY = 'xm_likes';
+const CMTS_KEY = 'xm_cmts';
+function getPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '[]'); } catch (_) { return []; } }
+function setPrefs(arr) { localStorage.setItem(PREFS_KEY, JSON.stringify(arr)); }
+function getBehaviors() { try { return JSON.parse(localStorage.getItem(BEHAV_KEY) || '{}'); } catch (_) { return {}; } }
+function trackBehavior(cat) {
+  const b = getBehaviors();
+  b[cat] = (b[cat] || 0) + 1;
+  localStorage.setItem(BEHAV_KEY, JSON.stringify(b));
+}
+function getLikes() { try { return JSON.parse(localStorage.getItem(LIKES_KEY) || '{}'); } catch (_) { return {}; } }
+function getCmts(postId) { try { return JSON.parse(localStorage.getItem(CMTS_KEY) || '{}')[postId] || null; } catch (_) { return null; } }
+function saveCmts(postId, list) {
+  const all = {};
+  try { Object.assign(all, JSON.parse(localStorage.getItem(CMTS_KEY) || '{}')); } catch (_) {}
+  all[postId] = list;
+  localStorage.setItem(CMTS_KEY, JSON.stringify(all));
+}
+
+// ============================================================
+// 对话（小秘智能体）
+// ============================================================
 const messagesEl = $('#messages');
 function addMsg(role, html) {
   const wrap = document.createElement('div');
@@ -175,7 +296,6 @@ function showSuggestions(suggestions = []) {
 }
 
 function speak(text) {
-  if (!$('#speakToggle').checked) return;
   if (!('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text.replace(/[🔔🤖⏰🎯🧳🧾✅⚡🍱🏨🎂]/g, ''));
   u.lang = 'zh-CN';
@@ -183,7 +303,6 @@ function speak(text) {
   speechSynthesis.speak(u);
 }
 
-// 小秘"正在输入"气泡（等待接口返回时展示，提升响应感知）
 function showTyping() {
   const wrap = document.createElement('div');
   wrap.className = 'msg agent typing';
@@ -213,7 +332,9 @@ async function send(text) {
   }
 }
 
-// ---------- 我的 ----------
+// ============================================================
+// 我的（个人中心数据）
+// ============================================================
 async function loadMe(kind) {
   const data = await api('GET', '/api/me');
   const el = $('#meList');
@@ -225,12 +346,13 @@ async function loadMe(kind) {
   else if (kind === 'diary') renderDiary(el, data.diary);
   else if (kind === 'bookings') renderBookings(el, data.bookings);
   else if (kind === 'notifications') renderNotifications(el, data.notifications);
+  renderMineStats(data);
 }
 
 function empty(el, text) { el.innerHTML = `<div class="empty">${text}</div>`; }
 
 function renderReminders(el, list) {
-  if (!list.length) return empty(el, '还没有提醒，去对话里说一句「明天9点提醒我开会」试试 👇');
+  if (!list.length) return empty(el, '还没有提醒，去小秘页说「明天9点提醒我开会」试试 👇');
   list.forEach((r) => {
     const div = document.createElement('div');
     div.className = 'item' + (r.done ? ' done' : '');
@@ -246,7 +368,7 @@ function renderReminders(el, list) {
   });
 }
 function renderGoals(el, list) {
-  if (!list.length) return empty(el, '还没有目标，去对话里说「定个目标：每天读书30分钟」🎯');
+  if (!list.length) return empty(el, '还没有目标，去小秘页说「定个目标：每天读书30分钟」🎯');
   list.forEach((g) => {
     const div = document.createElement('div');
     div.className = 'item';
@@ -263,7 +385,7 @@ function renderGoals(el, list) {
   });
 }
 function renderPlans(el, list) {
-  if (!list.length) return empty(el, '还没有计划，去对话里说「帮我做个周末出游计划」📝');
+  if (!list.length) return empty(el, '还没有计划，去小秘页说「帮我做个周末出游计划」📝');
   list.forEach((p) => {
     const div = document.createElement('div');
     div.className = 'item';
@@ -281,7 +403,7 @@ function renderPlans(el, list) {
   });
 }
 function renderDiary(el, list) {
-  if (!list.length) return empty(el, '还没有日记，去对话里说「帮我写一篇今天的生活日记」📓');
+  if (!list.length) return empty(el, '还没有日记，去小秘页说「帮我写一篇今天的生活日记」📓');
   list.forEach((d) => {
     const div = document.createElement('div');
     div.className = 'item';
@@ -294,7 +416,7 @@ function renderDiary(el, list) {
   });
 }
 function renderItineraries(el, list) {
-  if (!list.length) return empty(el, '还没有行程，去对话里说「帮我规划去成都3天行程」🧳');
+  if (!list.length) return empty(el, '还没有行程，去小秘页说「帮我规划周末去深圳游玩的行程」🧳');
   list.forEach((it) => {
     const div = document.createElement('div');
     div.className = 'item';
@@ -312,7 +434,7 @@ function renderItineraries(el, list) {
   });
 }
 function renderBookings(el, list) {
-  if (!list.length) return empty(el, '还没有订单，去对话里说「点外卖」「订酒店」一键下单 🧾');
+  if (!list.length) return empty(el, '还没有订单，去小秘页说「点外卖」「订酒店」一键下单 🧾');
   list.forEach((b) => {
     const div = document.createElement('div');
     div.className = 'item';
@@ -333,164 +455,336 @@ function renderNotifications(el, list) {
   });
 }
 
-// ---------- 首页 ----------
-async function loadHome() {
-  const data = await api('GET', '/api/me');
-  const uname = localStorage.getItem('xm_user');
-  $('#homeGreet').textContent = uname ? `👋 你好，${uname}，我是你的智能小秘` : '👋 你好，我是你的智能小秘';
+// ============================================================
+// 首页（平台精选中心）
+// ============================================================
+function renderBanners() {
+  const el = $('#homeBanner');
+  el.innerHTML = BANNERS.map((b) => `
+    <div class="banner">
+      <div class="b-title">${esc(b.title)}</div>
+      <div class="b-sub">${esc(b.sub)}</div>
+      <div class="b-emoji">${b.emoji}</div>
+    </div>`).join('');
+}
+
+function renderCats() {
+  const el = $('#homeCats');
+  el.innerHTML = CATEGORIES.map((c) => `
+    <div class="cat" data-cat="${c.id}">
+      <div class="c-ico">${c.icon}</div>
+      <div class="c-name">${esc(c.name)}</div>
+    </div>`).join('');
+  el.querySelectorAll('.cat').forEach((node) => node.addEventListener('click', () => {
+    trackBehavior(node.dataset.cat);
+    recoMode = { kind: 'cat', cat: node.dataset.cat };
+    renderPrefChips();
+    renderRecoFeed();
+    switchTab('reco');
+    toast(`已为你筛选「${CAT_NAME[node.dataset.cat]}」内容`, 'success');
+  }));
+}
+
+function merchantCardHTML(m) {
+  const dist = m.dist ? (m.dist >= 1000 ? (m.dist / 1000).toFixed(1) + 'km' : m.dist + 'm') : '附近';
+  return `<div class="m-card" data-id="${m.id}">
+    <div class="m-img">${m.emoji}</div>
+    <div class="m-body">
+      <div class="m-name">${esc(m.name)}</div>
+      <div class="m-meta"><span class="m-rate">★ ${m.rating}</span><span>${dist}</span></div>
+      <div class="m-price">${m.price === 0 ? '免费' : '¥' + m.price + '起'}</div>
+      <div class="m-tags">${m.tags.slice(0, 3).map((t) => `<span class="m-tag">${esc(t)}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+function renderNearMerchants() {
+  const el = $('#nearMerchants');
+  const sorted = [...MERCHANTS].filter((m) => m.cat !== 'taxi').sort((a, b) => (a.dist || 9999) - (b.dist || 9999)).slice(0, 6);
+  el.innerHTML = sorted.map(merchantCardHTML).join('');
+  el.querySelectorAll('.m-card').forEach((node) => node.addEventListener('click', () => {
+    const m = MERCHANTS.find((x) => x.id === node.dataset.id);
+    if (!m) return;
+    trackBehavior(m.cat);
+    toast(`已关注「${m.name}」，推荐页会多推同类内容 💗`, 'success');
+  }));
+}
+
+function renderHomeDeals() {
+  const el = $('#homeDeals');
+  el.innerHTML = DEALS.map((d) => `
+    <div class="deal" data-id="${d.id}">
+      <span class="d-badge">${esc(d.badge)}</span>
+      <div class="d-title">${esc(d.title)}</div>
+      <div class="d-mer">${esc(d.merchant)} · ${esc(CAT_NAME[d.cat] || '')}</div>
+      <div class="d-price"><span class="d-now">${d.price}</span><span class="d-old">¥${d.orig}</span></div>
+      <div class="d-sold">已售 ${d.sold}+</div>
+    </div>`).join('');
+  el.querySelectorAll('.deal').forEach((node) => node.addEventListener('click', () => {
+    const d = DEALS.find((x) => x.id === node.dataset.id);
+    if (!d) return;
+    trackBehavior(d.cat);
+    recoMode = { kind: 'deal', cat: d.cat };
+    renderPrefChips();
+    renderRecoFeed();
+    switchTab('reco');
+    toast('优惠已收藏，推荐页已更新 💝', 'success');
+  }));
+}
+
+// 搜索
+function doSearch(q) {
+  q = (q || '').trim();
+  if (!q) { toast('请输入关键词', 'warn'); return; }
+  const kw = q.toLowerCase();
+  const hits = MERCHANTS.filter((m) =>
+    m.name.toLowerCase().includes(kw) ||
+    m.tags.some((t) => t.toLowerCase().includes(kw)) ||
+    (CAT_NAME[m.cat] || '').includes(kw)
+  );
+  recoMode = { kind: 'search', q };
+  renderPrefChips();
+  renderRecoFeed(hits);
+  switchTab('reco');
+  if (!hits.length) toast('没有找到相关商家，换个词试试', 'warn');
+}
+
+// ============================================================
+// 推荐（个性化智能推荐）
+// ============================================================
+let recoMode = null; // null=个性化 | {kind:'cat'|'deal'|'search', ...}
+let recoRendered = false;
+
+function renderPrefChips() {
+  const el = $('#prefChips');
+  const prefs = getPrefs();
+  if (recoMode) {
+    let label = '';
+    if (recoMode.kind === 'cat') label = CAT_NAME[recoMode.cat] || '';
+    else if (recoMode.kind === 'deal') label = CAT_NAME[recoMode.cat] ? CAT_NAME[recoMode.cat] + '优惠' : '优惠';
+    else label = `搜索「${recoMode.q}」`;
+    el.innerHTML = `<span class="pref-chip on">🔍 ${esc(label)}</span>
+      <span class="pref-chip" id="prefBack">✕ 返回个性化推荐</span>`;
+    const back = $('#prefBack');
+    if (back) back.onclick = () => { recoMode = null; renderPrefChips(); renderRecoFeed(); };
+    return;
+  }
+  if (!prefs.length) {
+    el.innerHTML = '<span class="pref-chip">📍 未设置偏好，默认展示附近周边的好吃好玩</span>';
+    return;
+  }
+  el.innerHTML = prefs.map((c) => `<span class="pref-chip on">${CATEGORIES.find((x) => x.id === c)?.icon || ''} ${esc(CAT_NAME[c] || c)}</span>`).join('');
+}
+
+function recoScore(m) {
+  const prefs = getPrefs();
+  const beh = getBehaviors();
+  let s = (m.hot || 50) / 20; // 热度 2.5-5
+  if (prefs.includes(m.cat)) s += 3;
+  if (beh[m.cat]) s += Math.min(beh[m.cat], 5);
+  return s;
+}
+
+function renderRecoFeed(forced) {
+  const el = $('#recoFeed');
+  let list;
+  if (recoMode) {
+    if (recoMode.kind === 'cat') list = MERCHANTS.filter((m) => m.cat === recoMode.cat);
+    else if (recoMode.kind === 'deal') list = MERCHANTS.filter((m) => m.cat === recoMode.cat);
+    else list = forced || MERCHANTS;
+  } else {
+    const prefs = getPrefs();
+    if (prefs.length) {
+      // 千人千面：只展示勾选品类，按 偏好/行为/热度 加权排序
+      list = MERCHANTS.filter((m) => prefs.includes(m.cat)).sort((a, b) => recoScore(b) - recoScore(a));
+      if (!list.length) list = MERCHANTS.slice(0, 8);
+    } else {
+      // 默认：附近周边内容（距离优先）
+      const beh = getBehaviors();
+      if (Object.keys(beh).length) list = [...MERCHANTS].sort((a, b) => recoScore(b) - recoScore(a));
+      else list = [...MERCHANTS].filter((m) => m.cat !== 'taxi').sort((a, b) => (a.dist || 9999) - (b.dist || 9999)).slice(0, 10);
+    }
+  }
+  const title = $('#recoTitle');
+  if (recoMode && recoMode.kind === 'search') title.textContent = `🔍 “${recoMode.q}” 的搜索结果`;
+  else if (recoMode) title.textContent = '📌 筛选结果';
+  else {
+    const prefs = getPrefs();
+    title.textContent = prefs.length ? `✨ 为你推荐（已选 ${prefs.length} 个偏好）` : '✨ 为你推荐 · 附近周边';
+  }
+
+  if (!list.length) { el.innerHTML = '<div class="empty">该分类暂无内容，去看看别的吧</div>'; return; }
+  el.innerHTML = list.map((m) => {
+    const dist = m.dist ? (m.dist >= 1000 ? (m.dist / 1000).toFixed(1) + 'km' : m.dist + 'm') : '附近';
+    return `<div class="feed-card" data-id="${m.id}">
+      <div class="fc-emoji">${m.emoji}</div>
+      <div class="fc-main">
+        <div class="fc-name">${esc(m.name)}<span class="fc-cat">${esc(CAT_NAME[m.cat] || '')}</span></div>
+        <div class="fc-meta"><span class="fc-rate">★ ${m.rating}</span><span>${dist}</span><span>${m.sales}+ 人去过</span></div>
+        <div class="fc-tags">${m.tags.map((t) => `<span class="fc-tag">${esc(t)}</span>`).join('')}</div>
+        <div class="fc-addr">📍 ${esc(m.addr)}</div>
+        <div class="fc-foot">
+          <span class="fc-price">${m.price === 0 ? '免费' : m.price}</span>
+          <button class="fc-btn" data-go="${m.id}">去看看</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.feed-card').forEach((node) => node.addEventListener('click', (e) => {
+    if (e.target.closest('.fc-btn')) return;
+    const m = MERCHANTS.find((x) => x.id === node.dataset.id);
+    if (m) trackBehavior(m.cat);
+  }));
+  el.querySelectorAll('.fc-btn').forEach((btn) => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const m = MERCHANTS.find((x) => x.id === btn.dataset.go);
+    if (!m) return;
+    trackBehavior(m.cat);
+    toast(`已为「${m.name}」点赞，同类内容会更多出现在推荐里 💗`, 'success');
+  }));
+}
+
+// 偏好弹窗
+let prefDraft = [];
+function openPrefModal() {
+  prefDraft = [...getPrefs()];
+  renderPrefGrid();
+  $('#prefModal').hidden = false;
+}
+function renderPrefGrid() {
+  const el = $('#prefGrid');
+  el.innerHTML = CATEGORIES.map((c) => `
+    <div class="pref-item ${prefDraft.includes(c.id) ? 'on' : ''}" data-p="${c.id}">
+      <span class="p-ico">${c.icon}</span>${esc(c.name)}
+    </div>`).join('');
+  el.querySelectorAll('.pref-item').forEach((node) => node.addEventListener('click', () => {
+    const id = node.dataset.p;
+    const i = prefDraft.indexOf(id);
+    if (i >= 0) prefDraft.splice(i, 1);
+    else prefDraft.push(id);
+    node.classList.toggle('on');
+  }));
+}
+
+// ============================================================
+// 上新（新品动态社交种草）
+// ============================================================
+let newFilterCat = 'all';
+function renderNewFeed() {
+  const el = $('#newFeed');
+  const likes = getLikes();
+  let list = [...POSTS];
+  if (newFilterCat !== 'all') list = list.filter((p) => p.cat === newFilterCat);
+  if (!list.length) { el.innerHTML = '<div class="empty">该分类暂无上新，敬请期待 🎉</div>'; return; }
+  el.innerHTML = list.map((p) => {
+    const liked = !!likes[p.id];
+    const cmts = [...(p.comments || []), ...(getCmts(p.id) || [])];
+    const likeCount = p.likes + (liked ? 1 : 0);
+    return `<div class="post" data-id="${p.id}">
+      <div class="p-head">
+        <div class="p-avatar">${p.avatar}</div>
+        <div>
+          <div class="p-mer">${esc(p.merchant)}</div>
+          <div class="p-time">${esc(p.time)} · ${esc(CAT_NAME[p.cat] || '')}</div>
+        </div>
+        <span class="p-badge">新品</span>
+      </div>
+      <div class="p-title">${esc(p.title)}</div>
+      <div class="p-content">${esc(p.content)}</div>
+      <div class="p-deal">
+        <span class="p-price">${p.price}</span>
+        <span class="p-orig">¥${p.orig}</span>
+        <span class="p-groupon">${esc(p.groupon || '')}</span>
+      </div>
+      <div class="p-actions">
+        <button class="p-act ${liked ? 'liked' : ''}" data-like="${p.id}">${liked ? '❤️' : '🤍'} 赞 ${likeCount}</button>
+        <button class="p-act" data-cmt="${p.id}">💬 评论 ${cmts.length}</button>
+      </div>
+      <div class="p-comments" id="cmts-${p.id}" ${cmts.length ? '' : 'hidden'}>
+        ${cmts.map((c) => `<div class="cmt"><span class="cmt-u">${esc(c.u)}</span><span class="cmt-t">${esc(c.t)}</span></div>`).join('')}
+        <div class="cmt-input">
+          <input id="cmtIn-${p.id}" placeholder="说点什么…" maxlength="60" />
+          <button data-cmtok="${p.id}">发送</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('[data-like]').forEach((btn) => btn.addEventListener('click', () => {
+    const id = btn.dataset.like;
+    const likesMap = getLikes();
+    if (likesMap[id]) delete likesMap[id];
+    else likesMap[id] = true;
+    localStorage.setItem(LIKES_KEY, JSON.stringify(likesMap));
+    renderNewFeed();
+    toast(likesMap[id] ? '点赞成功 ❤️' : '已取消点赞', 'success');
+  }));
+  el.querySelectorAll('[data-cmt]').forEach((btn) => btn.addEventListener('click', () => {
+    const box = $('#cmts-' + btn.dataset.cmt);
+    if (box) { box.hidden = !box.hidden; }
+  }));
+  el.querySelectorAll('[data-cmtok]').forEach((btn) => btn.addEventListener('click', () => {
+    const id = btn.dataset.cmtok;
+    const input = $('#cmtIn-' + id);
+    const txt = (input.value || '').trim();
+    if (!txt) return;
+    const list = getCmts(id) || [];
+    list.push({ u: localStorage.getItem('xm_user') || '小秘用户', t: txt });
+    saveCmts(id, list);
+    renderNewFeed();
+    const box = $('#cmts-' + id);
+    if (box) box.hidden = false;
+    toast('评论已发布 💬', 'success');
+  }));
+}
+
+function renderNewFilter() {
+  const el = $('#newFilterBar');
+  el.hidden = false;
+  const chips = [{ id: 'all', name: '全部' }, ...CATEGORIES].map((c) =>
+    `<span class="pref-chip ${newFilterCat === c.id ? 'on' : ''}" data-f="${c.id}">${c.id === 'all' ? '🛍️ 全部' : c.icon + ' ' + c.name}</span>`).join('');
+  el.innerHTML = chips;
+  el.querySelectorAll('[data-f]').forEach((n) => n.addEventListener('click', () => {
+    newFilterCat = n.dataset.f;
+    renderNewFilter();
+    renderNewFeed();
+  }));
+}
+
+// ============================================================
+// 我的（个人中心）
+// ============================================================
+function renderMineStats(data) {
+  const el = $('#mineStats');
   const stats = [
-    { n: (data.reminders || []).filter((r) => !r.done).length, label: '待办提醒', icon: '⏰' },
-    { n: (data.goals || []).filter((g) => g.status === 'active').length, label: '进行中目标', icon: '🎯' },
-    { n: (data.itineraries || []).length, label: '行程', icon: '🧳' },
-    { n: (data.plans || []).filter((p) => p.status !== 'done').length, label: '待执行计划', icon: '📝' },
-    { n: (data.diary || []).length, label: '日记', icon: '📓' },
-    { n: (data.bookings || []).length, label: '订单', icon: '🧾' }
+    { n: (data.reminders || []).filter((r) => !r.done).length, label: '待办提醒', me: 'reminders', icon: '⏰' },
+    { n: (data.itineraries || []).length, label: '我的行程', me: 'itineraries', icon: '🧳' },
+    { n: (data.plans || []).filter((p) => p.status !== 'done').length, label: '进行中计划', me: 'plans', icon: '📝' },
+    { n: (data.goals || []).filter((g) => g.status === 'active').length, label: '进行中目标', me: 'goals', icon: '🎯' }
   ];
-  $('#homeStats').innerHTML = stats.map((s) => `<div class="stat"><div class="num">${s.n}</div><div class="lbl">${s.icon} ${s.label}</div></div>`).join('');
-
-  const upcoming = (data.reminders || []).filter((r) => !r.done).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 5);
-  const rel = $('#homeReminders');
-  if (!upcoming.length) rel.innerHTML = '<div class="empty">暂无提醒，点上方「加提醒」试试</div>';
-  else rel.innerHTML = upcoming.map((r) => `<div class="hitem"><div class="ht">${esc(r.title)}</div><div class="hs">🕒 ${esc(fmt(r.datetime))}${repeatLabel(r) ? ' · ' + esc(repeatLabel(r)) : ''}</div></div>`).join('');
-
-  const its = (data.itineraries || []).slice(0, 3);
-  const itl = $('#homeItineraries');
-  if (!its.length) itl.innerHTML = '<div class="empty">还没有行程，点「规划行程」🧳</div>';
-  else itl.innerHTML = its.map((it) => `<div class="hitem"><div class="ht">🧳 ${esc(it.destination)} ${it.days}日游</div><div class="hs">${esc(it.tip || '')}</div></div>`).join('');
-
-  const pls = (data.plans || []).filter((p) => p.status !== 'done').slice(0, 3);
-  const pll = $('#homePlans');
-  if (!pls.length) pll.innerHTML = '<div class="empty">还没有计划，点「做计划」📝</div>';
-  else pll.innerHTML = pls.map((p) => `<div class="hitem"><div class="ht">📝 ${esc(p.title)}</div><div class="hs">${p.dueDate ? '截止 ' + esc(fmt(p.dueDate)) : '待开始'}</div></div>`).join('');
-
-  const dys = (data.diary || []).slice(0, 3);
-  const dyl = $('#homeDiary');
-  if (!dys.length) dyl.innerHTML = '<div class="empty">还没有日记，点「写日记」📓</div>';
-  else dyl.innerHTML = dys.map((d) => `<div class="hitem"><div class="ht">📓 ${esc(d.title)}</div><div class="hs">${esc(fmt(d.date))}</div></div>`).join('');
-
-  renderProviderStatus();
+  el.innerHTML = stats.map((s) => `<div class="stat" data-me="${s.me}"><div class="num">${s.n}</div><div class="lbl">${s.icon} ${s.label}</div></div>`).join('');
+  el.querySelectorAll('.stat').forEach((n) => n.addEventListener('click', () => {
+    const me = n.dataset.me;
+    $$('#meSubtabs .subtab').forEach((x) => x.classList.remove('active'));
+    const t = $(`#meSubtabs .subtab[data-me="${me}"]`);
+    if (t) t.classList.add('active');
+    loadMe(me);
+  }));
 }
 
-function renderProviderStatus() {
-  const el = $('#providerStatus');
-  if (!el) return;
-  const p = APP_CONFIG.provider;
-  const st = APP_CONFIG.status;
-  if (!p || typeof p !== 'object') { el.innerHTML = '<span class="pchip mock">模拟通道 mock（未接真实平台）</span>'; return; }
-  const items = [['外卖', 'food'], ['酒店', 'hotel'], ['火车票', 'train'], ['飞机票', 'flight']];
-  el.innerHTML = items.map(([name, key]) => {
-    const v = p[key] || 'mock';
-    if (v === 'mock') return `<span class="pchip mock">${name} · 模拟</span>`;
-    const ready = st && st[key] && st[key].configured;
-    return `<span class="pchip real">${name} · ${esc(v)}${ready ? ' ✓已配置' : ' ⚠未配密钥'}</span>`;
-  }).join('');
+function renderMineProfile() {
+  const uname = localStorage.getItem('xm_user');
+  if (uname) {
+    $('#mineName').textContent = uname;
+    $('#mineAvatar').textContent = uname.charAt(0).toUpperCase();
+    $('#homeGreet').textContent = `👋 你好，${uname}，今天想吃点什么？`;
+  }
 }
 
-// ---------- 日历 ----------
-let calMonth = new Date();
-let lastMe = null;
-async function loadCalendar() {
-  lastMe = await api('GET', '/api/me');
-  renderCalendar(lastMe);
-}
-function renderCalendar(data) {
-  const y = calMonth.getFullYear(), m = calMonth.getMonth();
-  $('#calTitle').textContent = `${y}年${m + 1}月`;
-  const first = new Date(y, m, 1);
-  const startPad = first.getDay();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const cells = [];
-  for (let i = 0; i < startPad; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  const map = {};
-  (data.reminders || []).forEach((r) => {
-    const dt = new Date(r.datetime);
-    if (dt.getFullYear() === y && dt.getMonth() === m) {
-      const k = dt.getDate(); (map[k] = map[k] || []).push({ type: 'reminder', title: r.title });
-    }
-  });
-  (data.itineraries || []).forEach((it) => {
-    const base = new Date(it.createdAt);
-    const span = Math.max(1, Number(it.days) || 1);
-    for (let i = 0; i < span; i++) {
-      const dt = new Date(base); dt.setDate(base.getDate() + i);
-      if (dt.getFullYear() === y && dt.getMonth() === m) {
-        const k = dt.getDate();
-        (map[k] = map[k] || []).push({ type: 'trip', title: it.destination + (i === 0 ? ' ' + it.days + '日游' : ' · 第' + (i + 1) + '天') });
-      }
-    }
-  });
-  (data.plans || []).forEach((pl) => {
-    if (!pl.dueDate || pl.status === 'done') return;
-    const dt = new Date(pl.dueDate);
-    if (dt.getFullYear() === y && dt.getMonth() === m) {
-      const k = dt.getDate();
-      (map[k] = map[k] || []).push({ type: 'plan', title: '计划·' + pl.title });
-    }
-  });
-  (data.diary || []).forEach((d) => {
-    const dt = new Date(d.date);
-    if (dt.getFullYear() === y && dt.getMonth() === m) {
-      const k = dt.getDate();
-      (map[k] = map[k] || []).push({ type: 'diary', title: '日记·' + d.title });
-    }
-  });
-
-  const today = new Date();
-  const grid = $('#calGrid');
-  grid.innerHTML = cells.map((c) => {
-    if (c === null) return '<div class="cal-cell empty"></div>';
-    const isToday = c === today.getDate() && m === today.getMonth() && y === today.getFullYear();
-    const items = map[c] || [];
-    const dots = items.map((i) => `<i class="dot ${i.type}"></i>`).join('');
-    return `<div class="cal-cell${isToday ? ' today' : ''}" data-day="${c}"><span class="dnum">${c}</span><div class="dots">${dots}</div></div>`;
-  }).join('');
-
-  grid.querySelectorAll('.cal-cell[data-day]').forEach((cell) => {
-    cell.addEventListener('click', () => {
-      const d = parseInt(cell.dataset.day, 10);
-      const items = map[d] || [];
-      const det = $('#calDetail');
-      if (!items.length) det.innerHTML = `<div class="empty">${y}年${m + 1}月${d}日 暂无安排</div>`;
-      else det.innerHTML = items.map((i) => `<div class="hitem"><div class="ht">${i.type === 'reminder' ? '⏰' : '🧳'} ${esc(i.title)}</div></div>`).join('');
-    });
-  });
-}
-
-// ---------- 指令 ----------
-async function loadCmds() {
-  const { quickCommands } = await api('GET', '/api/quick-commands');
-  const el = $('#cmdList');
-  el.innerHTML = '';
-  if (!quickCommands.length) return empty(el, '还没有快捷指令，点「新建指令」添加 ⚡');
-  const actionName = { booking: '下单', itinerary: '行程', reminder: '提醒', goal: '目标', plan: '计划', diary: '日记', message: '消息' };
-  quickCommands.forEach((q) => {
-    const div = document.createElement('div');
-    div.className = 'cmd-card';
-    div.innerHTML = `<div class="emoji">${esc(q.icon || '⚡')}</div>
-      <div class="info"><div class="t">${esc(q.title)}</div>
-      <div class="tr">口令：「${esc(q.trigger)}」 · 类型：${actionName[q.actionType] || q.actionType}</div></div>
-      <button class="btn-sm danger" data-del="${q.id}">删除</button>`;
-    div.querySelector('[data-del]').onclick = async () => { await api('DELETE', '/api/quick-commands/' + q.id); loadCmds(); };
-    el.appendChild(div);
-  });
-}
-
-function renderCmdPayload() {
-  const a = $('#cmdAction').value;
-  const box = $('#cmdPayload');
-  if (a === 'booking') box.innerHTML = `<select id="cmdType"><option value="food">外卖</option><option value="hotel">酒店</option><option value="train">火车票</option><option value="flight">机票</option></select>`;
-  else if (a === 'itinerary') box.innerHTML = `<input id="cmdDest" placeholder="默认目的地（可空）" /><input id="cmdDays" placeholder="默认天数，如 3" />`;
-  else if (a === 'reminder') box.innerHTML = `<input id="cmdRTitle" placeholder="提醒内容" /><input id="cmdRWhen" placeholder="时间，如 明天 09:00" />`;
-  else if (a === 'goal') box.innerHTML = `<input id="cmdGTitle" placeholder="目标内容" />`;
-  else if (a === 'plan') box.innerHTML = `<input id="cmdPTitle" placeholder="计划内容，如：周末出游" /><input id="cmdPDue" placeholder="截止时间（可空），如 本周末" />`;
-  else if (a === 'diary') box.innerHTML = `<input id="cmdDTitle" placeholder="日记标题，如：生活日记" /><textarea id="cmdDContent" placeholder="日记内容（可空，留空自动生成）"></textarea>`;
-  else if (a === 'message') box.innerHTML = `<input id="cmdMsg" placeholder="要回复的话" />`;
-  else box.innerHTML = '';
-}
-
-// ---------- 通知轮询 + Toast ----------
+// ============================================================
+// 通知轮询 + Toast
+// ============================================================
 const seenNotifications = new Set();
 let unreadCount = 0;
 let firstPoll = true;
@@ -503,16 +797,12 @@ async function pollNotifications() {
         if (firstPoll) return;
         unreadCount++;
         toast(n.text, n.level === 'warn' ? 'warn' : 'success');
-        // 桌面提醒：提醒类通知优先用系统通知弹出
         if (n.level === 'warn') notifySystem(n.text);
       }
     });
     firstPoll = false;
-    updateBell();
   } catch (e) {}
 }
-
-// 系统通知（页面在前台/后台均可弹出；浏览器关闭需服务端 VAPID 推送）
 async function notifySystem(text) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
@@ -523,11 +813,6 @@ async function notifySystem(text) {
     new Notification('⏰ 小秘提醒', { body: text, icon: '/icons/icon.svg' });
   } catch (_) {}
 }
-function updateBell() {
-  const badge = $('#bellBadge');
-  if (unreadCount > 0) { badge.hidden = false; badge.textContent = unreadCount; }
-  else { badge.hidden = true; }
-}
 function toast(text, kind = '') {
   const wrap = $('#toastWrap');
   const t = document.createElement('div');
@@ -537,32 +822,40 @@ function toast(text, kind = '') {
   setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 4000);
 }
 
-// ---------- 登录 / 启动 ----------
-let appStarted = false;
-function switchView(view) {
-  $$('.tab').forEach((x) => x.classList.remove('active'));
-  const tb = $(`.tab[data-view="${view}"]`);
+// ============================================================
+// 五 Tab 切换（DOM 常驻，状态独立保留）
+// ============================================================
+const TAB_INIT = { home: false, reco: false, xiaomi: false, new: false, mine: false };
+function switchTab(tab) {
+  $$('.tabbar-item').forEach((x) => x.classList.remove('active'));
+  const tb = $(`.tabbar-item[data-tab="${tab}"]`);
   if (tb) tb.classList.add('active');
-  $$('.view').forEach((v) => v.classList.remove('active'));
-  const vw = $('#view-' + view);
-  if (vw) vw.classList.add('active');
-  if (view === 'me') loadMe($('#meSubtabs .subtab.active').dataset.me);
-  else if (view === 'cmd') loadCmds();
-  else if (view === 'home') loadHome();
-  else if (view === 'calendar') loadCalendar();
+  $$('.page').forEach((v) => v.classList.remove('active'));
+  const pg = $('#page-' + tab);
+  if (pg) pg.classList.add('active');
+
+  if (tab === 'home' && !TAB_INIT.home) { TAB_INIT.home = true; renderBanners(); renderCats(); renderNearMerchants(); renderHomeDeals(); }
+  if (tab === 'reco' && !TAB_INIT.reco) { TAB_INIT.reco = true; renderPrefChips(); renderRecoFeed(); }
+  if (tab === 'new' && !TAB_INIT.new) { TAB_INIT.new = true; renderNewFilter(); renderNewFeed(); }
+  if (tab === 'mine' && !TAB_INIT.mine) { TAB_INIT.mine = true; renderMineProfile(); loadMe($('#meSubtabs .subtab.active').dataset.me); }
 }
 
+// ============================================================
+// 登录 / 启动
+// ============================================================
+let appStarted = false;
 function showApp() {
   $('#auth').hidden = true; $('#auth').style.display = 'none';
   $('#app').hidden = false; $('#app').style.display = '';
-  if (appStarted) { loadHome(); return; }
+  if (appStarted) { switchTab('home'); return; }
   appStarted = true;
   api('GET', '/api/config').then((c) => {
-    if (c) { if (c.provider) APP_CONFIG = c; renderProviderStatus(); }
+    if (c && c.provider) APP_CONFIG = c;
   }).catch(() => {});
+  renderMineProfile();
   addMsg('agent', '你好，我是你的智能小秘 🤖\n告诉我你想办的事，或试试下面的快捷示例：');
-  showSuggestions(['明天9点提醒我开会', '帮我规划去成都3天行程', '点午餐外卖', '定个目标：每天读书30分钟']);
-  loadHome();
+  showSuggestions(['明天9点提醒我开会', '帮我规划周末去深圳游玩的行程', '点午餐外卖', '定个目标：每天读书30分钟']);
+  switchTab('home');
   setInterval(pollNotifications, 5000);
   pollNotifications();
 }
@@ -591,8 +884,11 @@ async function doAuth() {
 }
 function logout() { clearToken(); showAuth(); }
 
+// ============================================================
+// 事件绑定
+// ============================================================
 function bindEvents() {
-  // 登录相关
+  // 登录
   $$('.auth-tab').forEach((t) => t.addEventListener('click', () => {
     $$('.auth-tab').forEach((x) => x.classList.remove('active'));
     t.classList.add('active');
@@ -603,53 +899,26 @@ function bindEvents() {
   $('#authSubmit').addEventListener('click', doAuth);
   $('#authPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doAuth(); });
   $('#logoutBtn').addEventListener('click', logout);
-  const installBtn = $('#installBtn');
-  if (installBtn) installBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) { toast('可点击浏览器菜单「安装应用」', 'warn'); return; }
-    deferredPrompt.prompt();
-    try { await deferredPrompt.userChoice; } catch (_) {}
-    deferredPrompt = null;
-    installBtn.hidden = true;
-  });
 
-  // 导出我的全部数据（带鉴权，前端拉取后触发下载）
-  const exportBtn = $('#exportBtn');
-  if (exportBtn) exportBtn.addEventListener('click', async () => {
-    try {
-      const res = await fetch(getApiBase() + '/api/me/export', { headers: { 'Authorization': 'Bearer ' + getToken() } });
-      if (!res.ok) { toast('导出失败：' + res.status, 'warn'); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const cd = res.headers.get('Content-Disposition') || '';
-      const m = cd.match(/filename="?([^"]+)"?/);
-      a.download = m ? m[1] : 'xiaomi-export.json';
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      toast('数据已导出 📦', 'success');
-    } catch (e) { toast('导出失败', 'warn'); }
-  });
+  // 底部导航
+  $$('.tabbar-item').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
-  // 服务器地址设置弹窗
+  // 服务器地址设置
   const settingsModal = $('#settingsModal');
-  const settingsBtn = $('#settingsBtn');
   const settingsClose = $('#settingsClose');
   const settingsSave = $('#settingsSave');
   const settingsReset = $('#settingsReset');
   const apiBaseInput = $('#apiBaseInput');
   const srvTestResult = $('#srvTestResult');
-  function openSettings() {
-    if (!settingsModal) return;
+  $('#settingsBtn').addEventListener('click', () => {
     apiBaseInput.value = getApiBase();
     srvTestResult.innerHTML = '';
     settingsModal.hidden = false;
-  }
-  if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
-  if (settingsClose) settingsClose.addEventListener('click', () => { settingsModal.hidden = true; });
-  if (settingsModal) settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.hidden = true; });
-  if (settingsReset) settingsReset.addEventListener('click', () => { apiBaseInput.value = ''; setApiBase(''); srvTestResult.innerHTML = '<span class="ok">已恢复默认（同源访问）</span>'; });
-  if (settingsSave) settingsSave.addEventListener('click', async () => {
+  });
+  settingsClose.addEventListener('click', () => { settingsModal.hidden = true; });
+  settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.hidden = true; });
+  settingsReset.addEventListener('click', () => { apiBaseInput.value = ''; setApiBase(''); srvTestResult.innerHTML = '<span class="ok">已恢复默认（App 内为官方云端地址）</span>'; });
+  settingsSave.addEventListener('click', async () => {
     const v = apiBaseInput.value.trim().replace(/\/+$/, '');
     setApiBase(v);
     srvTestResult.innerHTML = '<span class="testing">⏳ 正在测试连接…</span>';
@@ -668,23 +937,24 @@ function bindEvents() {
     }
   });
 
-  // 视图切换（统一入口）
-  $$('.tab').forEach((t) => t.addEventListener('click', () => switchView(t.dataset.view)));
-  $('#calPrev').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() - 1); if (lastMe) renderCalendar(lastMe); });
-  $('#calNext').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() + 1); if (lastMe) renderCalendar(lastMe); });
+  // 搜索
+  $('#searchGo').addEventListener('click', () => doSearch($('#homeSearch').value));
+  $('#homeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch($('#homeSearch').value); });
 
-  // 首页快捷动作：跳到对话并预填示例
-  $$('#view-home .ha').forEach((b) => b.addEventListener('click', () => {
+  // 首页快捷动作 → 跳小秘并预填
+  $$('#page-home .ha').forEach((b) => b.addEventListener('click', () => {
     const map = { reminder: '提醒我 ', itinerary: '帮我规划 ', goal: '定个目标：', plan: '帮我做个计划：', diary: '帮我写一篇今天的生活日记', booking: '点外卖 ' };
-    switchView('chat');
+    switchTab('xiaomi');
     $('#input').value = map[b.dataset.act] || '';
     $('#input').focus();
   }));
+
+  // 我的 subtab
   $$('#meSubtabs .subtab').forEach((t) => t.addEventListener('click', () => {
     $$('#meSubtabs .subtab').forEach((x) => x.classList.remove('active'));
     t.classList.add('active');
     loadMe(t.dataset.me);
-    if (t.dataset.me === 'notifications') { unreadCount = 0; updateBell(); }
+    if (t.dataset.me === 'notifications') { unreadCount = 0; }
   }));
 
   // 对话发送
@@ -708,69 +978,49 @@ function bindEvents() {
     $('#micBtn').disabled = true; $('#micBtn').title = '当前浏览器不支持语音';
   }
 
-  // 指令
-  $('#addCmdBtn').addEventListener('click', () => { const f = $('#cmdForm'); f.hidden = !f.hidden; });
-  $('#cmdAction').addEventListener('change', renderCmdPayload);
-  $('#cmdCancel').addEventListener('click', () => { $('#cmdForm').hidden = true; });
-  $('#cmdSave').addEventListener('click', async () => {
-    const a = $('#cmdAction').value;
-    const payload = {};
-    if (a === 'booking') payload.type = $('#cmdType').value;
-    if (a === 'itinerary') { payload.destination = $('#cmdDest').value; payload.days = parseInt($('#cmdDays').value, 10) || 3; }
-    if (a === 'reminder') { payload.title = $('#cmdRTitle').value; payload.when = $('#cmdRWhen').value; }
-    if (a === 'goal') payload.title = $('#cmdGTitle').value;
-    if (a === 'plan') { payload.title = $('#cmdPTitle').value; payload.dueDate = $('#cmdPDue').value; }
-    if (a === 'diary') { payload.title = $('#cmdDTitle').value; payload.text = $('#cmdDContent').value; }
-    if (a === 'message') payload.text = $('#cmdMsg').value;
-    await api('POST', '/api/quick-commands', {
-      title: $('#cmdTitle').value, trigger: $('#cmdTrigger').value, icon: $('#cmdIcon').value || '⚡',
-      actionType: a, payload
-    });
-    $('#cmdForm').hidden = true;
-    ['cmdTitle', 'cmdTrigger', 'cmdIcon', 'cmdPayload'].forEach((id) => { if ($('#' + id)) $('#' + id).value = ''; });
-    loadCmds();
-    toast('指令已保存 ⚡', 'success');
+  // 兴趣偏好弹窗
+  $('#prefBtn').addEventListener('click', openPrefModal);
+  $('#prefClose').addEventListener('click', () => { $('#prefModal').hidden = true; });
+  $('#prefModal').addEventListener('click', (e) => { if (e.target === $('#prefModal')) $('#prefModal').hidden = true; });
+  $('#prefReset').addEventListener('click', () => { prefDraft = []; renderPrefGrid(); });
+  $('#prefSave').addEventListener('click', () => {
+    setPrefs(prefDraft);
+    $('#prefModal').hidden = true;
+    recoMode = null;
+    renderPrefChips();
+    renderRecoFeed();
+    toast(prefDraft.length ? `已保存 ${prefDraft.length} 个兴趣偏好，推荐已更新 ✨` : '已重置偏好，默认展示附近内容 📍', 'success');
   });
 
-  // 通知铃铛
-  $('#bellBtn').addEventListener('click', () => {
-    $$('#meSubtabs .subtab').forEach((x) => x.classList.remove('active'));
-    const nt = $('#meSubtabs .subtab[data-me="notifications"]');
-    nt.classList.add('active');
-    unreadCount = 0; updateBell();
-    loadMe('notifications');
+  // 上新筛选
+  $('#newFilter').addEventListener('click', () => {
+    const bar = $('#newFilterBar');
+    bar.hidden = !bar.hidden;
+    if (!bar.hidden && !bar.children.length) renderNewFilter();
+  });
+
+  // 附近商家/更多
+  $('#nearMore').addEventListener('click', () => {
+    recoMode = null;
+    renderPrefChips();
+    renderRecoFeed();
+    switchTab('reco');
+    toast('已为你展示附近热门内容 📍', 'success');
+  });
+  $('#dealsMore').addEventListener('click', () => {
+    recoMode = null;
+    renderPrefChips();
+    renderRecoFeed();
+    switchTab('reco');
   });
 }
 
-// ---------- PWA：安装引导 + Service Worker ----------
-let deferredPrompt = null;
+// ============================================================
+// PWA：安装引导 + Service Worker
+// ============================================================
 function initPWA() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const btn = $('#installBtn');
-    if (btn) btn.hidden = false;
-  });
-  window.addEventListener('appinstalled', () => {
-    const btn = $('#installBtn');
-    if (btn) btn.hidden = true;
-    toast('已安装到桌面 🎉', 'success');
-  });
-  // 桌面提醒开关：勾选即申请通知权限
-  const nt = $('#notifToggle');
-  if (nt) {
-    if ('Notification' in window && Notification.permission === 'granted') nt.checked = true;
-    nt.addEventListener('change', async () => {
-      if (nt.checked) {
-        if (!('Notification' in window)) { nt.checked = false; toast('当前浏览器不支持桌面通知', 'warn'); return; }
-        const perm = await Notification.requestPermission();
-        if (perm !== 'granted') { nt.checked = false; toast('未授权桌面通知', 'warn'); }
-        else toast('已开启桌面提醒 🔔', 'success');
-      }
-    });
   }
 }
 
