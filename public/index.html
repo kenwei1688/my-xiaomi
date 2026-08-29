@@ -99,6 +99,13 @@
       </div>
       <div class="messages" id="messages"></div>
       <div class="quick-replies" id="quickReplies"></div>
+      <div class="quick-cmds" id="quickCmds">
+        <div class="qc-bar">
+          <span class="qc-label">⚡ 快捷指令</span>
+          <button class="qc-manage" id="qcManage">管理</button>
+        </div>
+        <div class="qc-scroll" id="qcScroll"></div>
+      </div>
       <div class="composer">
         <button class="mic" id="micBtn" title="语音输入">🎤</button>
         <input id="input" type="text" placeholder="例如：明天早上8点提醒我开会 / 帮我规划周末去深圳游玩的行程 / 点午餐外卖" autocomplete="off" />
@@ -121,7 +128,7 @@
 
     <!-- ============ 我的（个人中心） ============ -->
     <section class="page" id="page-mine">
-      <div class="mine-head">
+      <div class="mine-head" id="mineHead" style="cursor:pointer">
         <div class="avatar" id="mineAvatar">🤖</div>
         <div class="mine-info">
           <div class="mine-name" id="mineName">小秘用户</div>
@@ -203,6 +210,63 @@
       <div class="modal-foot">
         <button class="ghost" id="prefReset">重置</button>
         <button class="send" id="prefSave">保存偏好</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷指令管理弹窗 -->
+  <div class="modal-mask" id="qcModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <span>⚡ 快捷指令管理</span>
+        <button class="modal-close" id="qcModalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">添加你的专属快捷指令，在小秘对话页一键触发。支持点单、行程、提醒、目标、计划、日记六种动作。</p>
+        <div class="qc-list" id="qcList"></div>
+        <div class="qc-add">
+          <div class="qc-add-title">➕ 新增指令</div>
+          <input id="qcNewTitle" type="text" placeholder="指令名称，如：下班打卡" autocomplete="off" />
+          <input id="qcNewTrigger" type="text" placeholder="触发词，如：下班打卡" autocomplete="off" />
+          <select id="qcNewAction">
+            <option value="reminder">⏰ 提醒</option>
+            <option value="itinerary">🧳 行程</option>
+            <option value="booking">🧾 下单</option>
+            <option value="goal">🎯 目标</option>
+            <option value="plan">📝 计划</option>
+            <option value="diary">📓 日记</option>
+          </select>
+          <button class="send" id="qcAddBtn">添加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 个人资料编辑弹窗 -->
+  <div class="modal-mask" id="profileModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <span>👤 编辑个人资料</span>
+        <button class="modal-close" id="profileClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-avatar-row">
+          <div class="profile-avatar-big" id="profileAvatarBig">🤖</div>
+          <div class="profile-avatar-pick">
+            <div class="hint">点击下方表情选择头像</div>
+            <div class="emoji-grid" id="emojiGrid"></div>
+          </div>
+        </div>
+        <label class="profile-label">昵称</label>
+        <input id="profileNickname" type="text" placeholder="设置你的昵称" autocomplete="off" maxlength="20" />
+        <label class="profile-label">手机号（用于短信提醒）</label>
+        <input id="profilePhone" type="tel" placeholder="选填，仅用于短信提醒" autocomplete="off" />
+        <label class="profile-label">个性签名</label>
+        <input id="profileBio" type="text" placeholder="一句话介绍自己" autocomplete="off" maxlength="50" />
+      </div>
+      <div class="modal-foot">
+        <button class="ghost" id="profileCancel">取消</button>
+        <button class="send" id="profileSave">保存</button>
       </div>
     </div>
   </div>

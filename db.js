@@ -33,7 +33,10 @@ function ensureDir() { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { re
 export function uid(prefix = 'id') { return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
 
 function emptyUserState() {
-  return { quickCommands: clone(DEFAULT_QUICK_COMMANDS), reminders: [], goals: [], itineraries: [], plans: [], diary: [], bookings: [], notifications: [], pendingBooking: null };
+  return {
+    quickCommands: clone(DEFAULT_QUICK_COMMANDS), reminders: [], goals: [], itineraries: [], plans: [], diary: [], bookings: [], notifications: [], pendingBooking: null,
+    profile: { nickname: '', avatar: '', phone: '', bio: '', memberLevel: '普通会员' }
+  };
 }
 
 // ---- SQLite 初始化 ----
@@ -75,9 +78,23 @@ function loadUserState(userId) {
       const rows = sql.prepare(`SELECT data FROM docs WHERE user_id=? AND type=? ORDER BY rowid ASC`).all(userId, type);
       s[type] = rows.map((r) => JSON.parse(r.data));
     }
+    // 个人资料（单对象，type='profile'）
+    const profRow = sql.prepare(`SELECT data FROM docs WHERE user_id=? AND type='profile' LIMIT 1`).get(userId);
+    if (profRow) { try { s.profile = { ...s.profile, ...JSON.parse(profRow.data) }; } catch (_) {} }
+  } else {
+    // JSON 兜底：每个用户一个文件
+    const f = path.join(DATA_DIR, `user_${userId}.json`);
+    if (fs.existsSync(f)) { try { Object.assign(s, JSON.parse(fs.readFileSync(f, 'utf8'))); } catch (_) {} }
   }
   states[userId] = s;
   return s;
+}
+
+function saveJsonUser(userId) {
+  ensureDir();
+  const s = states[userId];
+  if (!s) return;
+  try { fs.writeFileSync(path.join(DATA_DIR, `user_${userId}.json`), JSON.stringify(s, null, 2), 'utf8'); } catch (e) { console.error('[db] user json 写入失败:', e.message); }
 }
 
 function persistUser(userId) {
@@ -93,6 +110,8 @@ function persistUser(userId) {
         ins.run(item.id || `${type}_${Math.random().toString(36).slice(2)}`, userId, type, JSON.stringify(item), item.createdAt || nowISO());
       }
     }
+    // 个人资料单独存一行
+    if (s.profile) ins.run(`profile_${userId}`, userId, 'profile', JSON.stringify(s.profile), nowISO());
     sql.exec('COMMIT');
   } catch (e) {
     try { sql.exec('ROLLBACK'); } catch (_) {}
@@ -106,6 +125,7 @@ export function forUser(userId) {
   const s = loadUserState(uidKey);
   return {
     getState: () => s,
+    get profile() { return s.profile; },
     get reminders() { return s.reminders; },
     get goals() { return s.goals; },
     get itineraries() { return s.itineraries; },

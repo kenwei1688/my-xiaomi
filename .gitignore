@@ -2,6 +2,7 @@
 server/data/
 server/.env
 .env
+data/
 
 # ========= 依赖 =========
 node_modules/

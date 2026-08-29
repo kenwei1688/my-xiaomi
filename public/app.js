@@ -17,6 +17,17 @@ function repeatLabel(r) {
   const map = { daily: '每天', weekday: '工作日', weekly: `每周${WK[r.repeatWeekday || 1]}`, monthly: `每月${r.repeatMonthDay}日`, yearly: '每年' };
   return map[r.repeat] || '';
 }
+// 提醒分类标签（7 类 + 通用）
+const REMINDER_CAT_LABELS = {
+  clockin: '🕘 上班打卡', clockout: '🌆 下班打卡', birthday: '🎂 生日',
+  meeting: '📋 会议', travel: '🧳 出行', business_trip: '✈️ 出差',
+  repayment: '💰 还钱', general: '🔔 提醒'
+};
+// 提醒方式（3 种）
+const REMINDER_METHOD_LABELS = {
+  alarm: '⏰ 闹钟', wechat: '💬 微信', sms: '📱 短信'
+};
+const REMINDER_METHOD_CYCLE = ['alarm', 'wechat', 'sms'];
 function providerLabel(type) {
   const p = APP_CONFIG.provider;
   if (!p) return 'mock';
@@ -339,6 +350,15 @@ async function loadMe(kind) {
   const data = await api('GET', '/api/me');
   const el = $('#meList');
   el.innerHTML = '';
+  // 同步个人资料缓存与头像显示
+  if (data.profile) {
+    cachedProfile = data.profile;
+    const uname = localStorage.getItem('xm_user');
+    const nick = data.profile.nickname || uname || '小秘用户';
+    $('#mineName').textContent = nick;
+    $('#mineAvatar').textContent = data.profile.avatar || (uname ? uname.charAt(0).toUpperCase() : '🤖');
+    $('#mineMeta').textContent = data.profile.memberLevel || '普通会员';
+  }
   if (kind === 'reminders') renderReminders(el, data.reminders);
   else if (kind === 'goals') renderGoals(el, data.goals);
   else if (kind === 'itineraries') renderItineraries(el, data.itineraries);
@@ -356,14 +376,29 @@ function renderReminders(el, list) {
   list.forEach((r) => {
     const div = document.createElement('div');
     div.className = 'item' + (r.done ? ' done' : '');
+    const cat = r.category || 'general';
+    const catLabel = REMINDER_CAT_LABELS[cat] || REMINDER_CAT_LABELS.general;
+    const method = r.method || 'alarm';
+    const methodLabel = REMINDER_METHOD_LABELS[method] || REMINDER_METHOD_LABELS.alarm;
     div.innerHTML = `<div class="row1"><div><div class="title">${esc(r.title)}</div>
-      <div class="sub">🕒 ${esc(fmt(r.datetime))} ${repeatLabel(r) ? '· ' + esc(repeatLabel(r)) : ''}</div></div>
+      <div class="sub">🕒 ${esc(fmt(r.datetime))} ${repeatLabel(r) ? '· ' + esc(repeatLabel(r)) : ''}</div>
+      <div class="reminder-tags">
+        <span class="rm-tag rm-cat">${catLabel}</span>
+        <button class="rm-tag rm-method" data-act="method">${methodLabel}</button>
+      </div></div>
       <div class="actions">
         <button class="btn-sm" data-act="toggle">${r.done ? '恢复' : '完成'}</button>
         <button class="btn-sm danger" data-act="del">删除</button>
       </div></div>`;
     div.querySelector('[data-act="toggle"]').onclick = async () => { await api('PATCH', '/api/reminders/' + r.id, { done: !r.done }); loadMe('reminders'); };
     div.querySelector('[data-act="del"]').onclick = async () => { await api('DELETE', '/api/reminders/' + r.id); loadMe('reminders'); };
+    div.querySelector('[data-act="method"]').onclick = async () => {
+      const idx = REMINDER_METHOD_CYCLE.indexOf(method);
+      const next = REMINDER_METHOD_CYCLE[(idx + 1) % REMINDER_METHOD_CYCLE.length];
+      await api('PATCH', '/api/reminders/' + r.id, { method: next });
+      toast(`提醒方式已改为「${REMINDER_METHOD_LABELS[next]}」`, 'success');
+      loadMe('reminders');
+    };
     el.appendChild(div);
   });
 }
@@ -774,12 +809,112 @@ function renderMineStats(data) {
 }
 
 function renderMineProfile() {
-  const uname = localStorage.getItem('xm_user');
-  if (uname) {
-    $('#mineName').textContent = uname;
-    $('#mineAvatar').textContent = uname.charAt(0).toUpperCase();
-    $('#homeGreet').textContent = `👋 你好，${uname}，今天想吃点什么？`;
-  }
+  // 异步拉取云端个人资料并渲染
+  api('GET', '/api/me').then((data) => {
+    const pr = data.profile || {};
+    const uname = localStorage.getItem('xm_user');
+    const nick = pr.nickname || uname || '小秘用户';
+    const avatar = pr.avatar || (uname ? uname.charAt(0).toUpperCase() : '🤖');
+    $('#mineName').textContent = nick;
+    $('#mineAvatar').textContent = avatar;
+    $('#mineMeta').textContent = pr.memberLevel || '普通会员';
+    $('#homeGreet').textContent = `👋 你好，${nick}，今天想吃点什么？`;
+    // 缓存到本地供编辑弹窗预填
+    cachedProfile = pr;
+  }).catch(() => {});
+}
+let cachedProfile = {};
+
+// ---- 快捷指令管理 ----
+let cachedQuickCmds = [];
+function renderQuickCmds() {
+  const el = $('#qcScroll');
+  if (!el) return;
+  api('GET', '/api/me').then((data) => {
+    cachedQuickCmds = data.quickCommands || [];
+    if (!cachedQuickCmds.length) {
+      el.innerHTML = '<span class="qc-empty">暂无快捷指令，点「管理」添加</span>';
+      return;
+    }
+    el.innerHTML = cachedQuickCmds.map((qc) => {
+      const icon = qc.icon || '⚡';
+      return `<div class="qc-chip" data-qc="${esc(qc.id)}" title="${esc(qc.trigger || qc.title)}">${icon} ${esc(qc.title)}</div>`;
+    }).join('');
+    el.querySelectorAll('.qc-chip').forEach((chip) => chip.addEventListener('click', () => {
+      const qc = cachedQuickCmds.find((x) => x.id === chip.dataset.qc);
+      if (qc && qc.trigger) send(qc.trigger);
+      else if (qc) send(qc.title);
+    }));
+  }).catch(() => {});
+}
+function renderQcList() {
+  const el = $('#qcList');
+  if (!cachedQuickCmds.length) { el.innerHTML = '<div class="empty">暂无快捷指令，在下方添加</div>'; return; }
+  el.innerHTML = cachedQuickCmds.map((qc) => {
+    const actionLabel = { reminder: '⏰提醒', itinerary: '🧳行程', booking: '🧾下单', goal: '🎯目标', plan: '📝计划', diary: '📓日记' }[qc.actionType] || qc.actionType;
+    return `<div class="qc-item">
+      <div class="qc-item-main"><span class="qc-item-ico">${qc.icon || '⚡'}</span>
+      <div><div class="qc-item-title">${esc(qc.title)}</div>
+      <div class="qc-item-sub">触发词「${esc(qc.trigger || qc.title)}」· ${actionLabel}</div></div></div>
+      <button class="btn-sm danger" data-del="${esc(qc.id)}">删除</button></div>`;
+  }).join('');
+  el.querySelectorAll('[data-del]').forEach((btn) => btn.addEventListener('click', async () => {
+    await api('DELETE', '/api/quick-commands/' + btn.dataset.del);
+    toast('已删除快捷指令', 'success');
+    await refreshQuickCmds();
+  }));
+}
+async function refreshQuickCmds() {
+  const data = await api('GET', '/api/me');
+  cachedQuickCmds = data.quickCommands || [];
+  renderQcList();
+  renderQuickCmds();
+}
+async function addQuickCommand() {
+  const title = $('#qcNewTitle').value.trim();
+  const trigger = $('#qcNewTrigger').value.trim();
+  const actionType = $('#qcNewAction').value;
+  if (!title || !trigger) { toast('请填写指令名称和触发词', 'warn'); return; }
+  const iconMap = { reminder: '⏰', itinerary: '🧳', booking: '🧾', goal: '🎯', plan: '📝', diary: '📓' };
+  const payload = { title, trigger, icon: iconMap[actionType] || '⚡', actionType, payload: {} };
+  if (actionType === 'reminder') payload.payload = { when: '明天 09:00', title };
+  if (actionType === 'itinerary') payload.payload = { destination: '', days: 2 };
+  if (actionType === 'goal') payload.payload = { title };
+  if (actionType === 'plan') payload.payload = { title };
+  if (actionType === 'diary') payload.payload = { title };
+  await api('POST', '/api/quick-commands', payload);
+  $('#qcNewTitle').value = ''; $('#qcNewTrigger').value = '';
+  toast('已添加快捷指令', 'success');
+  await refreshQuickCmds();
+}
+
+// ---- 个人资料编辑 ----
+const AVATAR_EMOJIS = ['🤖','😀','😎','🥳','🤩','😊','🦊','🐱','🐶','🐼','🦁','🐸','🐵','🦄','🌟','🌈','🌸','🍀','☕','🎮','📚','🎵','🏃','💼','🎉','👑'];
+function openProfileModal() {
+  const pr = cachedProfile || {};
+  $('#profileNickname').value = pr.nickname || '';
+  $('#profilePhone').value = pr.phone || '';
+  $('#profileBio').value = pr.bio || '';
+  $('#profileAvatarBig').textContent = pr.avatar || '🤖';
+  const eg = $('#emojiGrid');
+  eg.innerHTML = AVATAR_EMOJIS.map((e) => `<span class="emoji-pick" data-e="${e}">${e}</span>`).join('');
+  eg.querySelectorAll('.emoji-pick').forEach((s) => s.addEventListener('click', () => {
+    eg.querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('on'));
+    s.classList.add('on');
+    $('#profileAvatarBig').textContent = s.dataset.e;
+  }));
+  if (pr.avatar) { const cur = eg.querySelector(`[data-e="${pr.avatar}"]`); if (cur) cur.classList.add('on'); }
+  $('#profileModal').hidden = false;
+}
+async function saveProfile() {
+  const nickname = $('#profileNickname').value.trim();
+  const phone = $('#profilePhone').value.trim();
+  const bio = $('#profileBio').value.trim();
+  const avatar = $('#profileAvatarBig').textContent;
+  await api('PATCH', '/api/profile', { nickname, phone, bio, avatar });
+  $('#profileModal').hidden = true;
+  renderMineProfile();
+  toast('个人资料已保存', 'success');
 }
 
 // ============================================================
@@ -836,6 +971,7 @@ function switchTab(tab) {
 
   if (tab === 'home' && !TAB_INIT.home) { TAB_INIT.home = true; renderBanners(); renderCats(); renderNearMerchants(); renderHomeDeals(); }
   if (tab === 'reco' && !TAB_INIT.reco) { TAB_INIT.reco = true; renderPrefChips(); renderRecoFeed(); }
+  if (tab === 'xiaomi' && !TAB_INIT.xiaomi) { TAB_INIT.xiaomi = true; renderQuickCmds(); }
   if (tab === 'new' && !TAB_INIT.new) { TAB_INIT.new = true; renderNewFilter(); renderNewFeed(); }
   if (tab === 'mine' && !TAB_INIT.mine) { TAB_INIT.mine = true; renderMineProfile(); loadMe($('#meSubtabs .subtab.active').dataset.me); }
 }
@@ -998,6 +1134,26 @@ function bindEvents() {
     bar.hidden = !bar.hidden;
     if (!bar.hidden && !bar.children.length) renderNewFilter();
   });
+
+  // 快捷指令管理弹窗
+  $('#qcManage').addEventListener('click', async () => {
+    await refreshQuickCmds();
+    $('#qcModal').hidden = false;
+  });
+  $('#qcModalClose').addEventListener('click', () => { $('#qcModal').hidden = true; });
+  $('#qcModal').addEventListener('click', (e) => { if (e.target === $('#qcModal')) $('#qcModal').hidden = true; });
+  $('#qcAddBtn').addEventListener('click', addQuickCommand);
+
+  // 个人资料编辑弹窗
+  $('#mineHead').addEventListener('click', (e) => {
+    // 点击工具按钮时不触发
+    if (e.target.closest('.mine-tools')) return;
+    openProfileModal();
+  });
+  $('#profileClose').addEventListener('click', () => { $('#profileModal').hidden = true; });
+  $('#profileCancel').addEventListener('click', () => { $('#profileModal').hidden = true; });
+  $('#profileModal').addEventListener('click', (e) => { if (e.target === $('#profileModal')) $('#profileModal').hidden = true; });
+  $('#profileSave').addEventListener('click', saveProfile);
 
   // 附近商家/更多
   $('#nearMore').addEventListener('click', () => {

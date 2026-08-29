@@ -206,7 +206,7 @@ const server = http.createServer(async (req, res) => {
           userId: uid,
           data: {
             reminders: s.reminders, goals: s.goals, itineraries: s.itineraries,
-            plans: s.plans, diary: s.diary,
+            plans: s.plans, diary: s.diary, profile: s.profile,
             bookings: s.bookings, quickCommands: s.quickCommands, notifications: s.notifications
           }
         };
@@ -230,9 +230,24 @@ const server = http.createServer(async (req, res) => {
         const s = db.forUser(uid).getState();
         return sendJSON(res, 200, {
           reminders: s.reminders, goals: s.goals, itineraries: s.itineraries,
-          plans: s.plans, diary: s.diary,
+          plans: s.plans, diary: s.diary, profile: s.profile,
           bookings: s.bookings, quickCommands: s.quickCommands, notifications: s.notifications
         });
+      }
+
+      // /api/profile —— 个人资料 GET/PATCH
+      if (p === '/api/profile' && method === 'GET') {
+        return sendJSON(res, 200, { profile: db.forUser(uid).profile });
+      }
+      if (p === '/api/profile' && method === 'PATCH') {
+        const body = await readBody(req);
+        const u = db.forUser(uid);
+        const pr = u.getState().profile;
+        for (const k of ['nickname', 'avatar', 'phone', 'bio', 'memberLevel']) {
+          if (body[k] !== undefined) pr[k] = body[k];
+        }
+        u.save();
+        return sendJSON(res, 200, { profile: pr });
       }
 
       // /api/notifications
@@ -302,6 +317,8 @@ const server = http.createServer(async (req, res) => {
           if (typeof body.done === 'boolean') arr[idx].done = body.done;
           if (body.title) arr[idx].title = body.title;
           if (body.note !== undefined) arr[idx].note = body.note;
+          if (body.method && ['alarm', 'wechat', 'sms'].includes(body.method)) arr[idx].method = body.method;
+          if (body.category) arr[idx].category = body.category;
           db.forUser(uid).save();
           return sendJSON(res, 200, { reminder: arr[idx] });
         }
