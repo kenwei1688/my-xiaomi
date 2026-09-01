@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Railway 绑定 GitHub 操作步骤</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin:0; background:#f5f6f8; color:#1f2328; line-height:1.6; }
+  header { background:#0f1115; color:#fff; padding:26px 24px; }
+  header h1 { margin:0 0 6px; font-size:21px; }
+  header p { margin:0; color:#aeb4bd; font-size:14px; max-width:780px; }
+  nav { position:sticky; top:0; background:#fff; border-bottom:1px solid #e3e6ea; padding:10px 24px; display:flex; gap:8px; flex-wrap:wrap; z-index:5; }
+  nav a { font-size:13px; color:#185FA5; text-decoration:none; padding:5px 12px; border:1px solid #cfd8e3; border-radius:999px; }
+  nav a:hover { background:#eef4fb; }
+  main { max-width:840px; margin:0 auto; padding:24px; }
+  .step { background:#fff; border:1px solid #e3e6ea; border-radius:14px; padding:20px 22px; margin:18px 0; }
+  .step h2 { margin:0 0 4px; font-size:17px; display:flex; align-items:center; gap:10px; }
+  .badge { background:#185FA5; color:#fff; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex:0 0 auto; }
+  .do { background:#eaf3de; border:1px solid #c0dd97; border-radius:10px; padding:12px 14px; margin-top:12px; font-size:14px; }
+  .do b { color:#3b6d11; }
+  .see { color:#64748b; font-size:13px; margin-top:8px; }
+  .mock { margin-top:14px; border:1px solid #d7dbe0; border-radius:10px; overflow:hidden; }
+  .mock .cap { background:#f0f2f5; font-size:12px; color:#5f5e5a; padding:7px 10px; border-bottom:1px solid #e3e6ea; }
+  .rw-bar { background:#0f1115; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; }
+  .rw-logo { color:#fff; font-weight:600; font-size:15px; }
+  .rw-avatar { width:28px; height:28px; border-radius:50%; background:#534AB7; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; }
+  .rw-menu { background:#171a21; border:1px solid #2a2f3a; border-radius:10px; width:210px; margin:8px; }
+  .rw-menu div { padding:9px 14px; font-size:13px; color:#e7eaf0; }
+  .rw-menu div:hover { background:#232733; }
+  .rw-menu .hi { background:#232733; color:#fff; }
+  .rw-set { display:flex; min-height:210px; background:#0f1115; }
+  .rw-side { width:180px; background:#171a21; padding:14px; }
+  .rw-side .s { font-size:12px; color:#9aa1ad; padding:8px; border-radius:6px; margin-bottom:4px; }
+  .rw-side .s.on { background:#232733; color:#fff; }
+  .rw-main { flex:1; padding:18px; color:#e7eaf0; }
+  .rw-card { background:#171a21; border:1px solid #2a2f3a; border-radius:10px; padding:14px; display:flex; justify-content:space-between; align-items:center; }
+  .rw-card .lbl { font-size:13px; }
+  .rw-card .sub { font-size:12px; color:#9aa1ad; margin-top:3px; }
+  .rw-btn { background:#185FA5; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; }
+  .rw-btn.green { background:#2ea043; }
+  .rw-btn.ghost { background:#232733; color:#e7eaf0; border:1px solid #3a4150; }
+  .gh { background:#fff; padding:18px; color:#1f2328; }
+  .gh h3 { margin:0 0 10px; font-size:16px; }
+  .gh .row { border:1px solid #d0d7de; border-radius:8px; padding:10px 12px; margin:8px 0; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .gh .row.sel { border-color:#1f883d; background:#f3fcf5; }
+  .gh .repo { font-family: monospace; font-size:13px; }
+  .gh .note { font-size:12px; color:#57606a; margin:6px 0 12px; }
+  .gh .install { background:#1f883d; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:14px; cursor:pointer; }
+  .gh .cancel { background:#f6f8fa; color:#1f2328; border:1px solid #d0d7de; border-radius:8px; padding:9px 16px; font-size:14px; margin-left:8px; cursor:pointer; }
+  footer { max-width:840px; margin:0 auto 40px; padding:0 24px; }
+  .warn { background:#faeeda; border:1px solid #ef9f27; border-radius:10px; padding:14px 16px; font-size:13px; color:#854f0b; }
+  .warn b { color:#633806; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Railway 绑定 GitHub · 操作步骤页面</h1>
+  <p>目的：把你的 GitHub 账号绑到 Railway 账号，之后往 GitHub 推代码就会自动部署上线。下面每一步都配有仿真界面，照着点即可。预计 2 分钟。</p>
+</header>
+
+<nav>
+  <a href="#s1">① 点头像</a>
+  <a href="#s2">② 账户设置</a>
+  <a href="#s3">③ Connect GitHub</a>
+  <a href="#s4">④ GitHub 授权</a>
+  <a href="#s5">⑤ 开启自动部署</a>
+  <a href="#help">卡住怎么办</a>
+</nav>
+
+<main>
+
+  <div class="step" id="s1">
+    <h2><span class="badge">1</span> 登录 Railway，点右上角头像</h2>
+    <div class="mock">
+      <div class="cap">↑ 这是 Railway 后台的顶部栏，红圈处就是你的头像</div>
+      <div class="rw-bar">
+        <div class="rw-logo">Railway</div>
+        <div class="rw-avatar">L</div>
+      </div>
+      <div class="rw-menu">
+        <div class="hi">Account Settings</div>
+        <div>Projects</div>
+        <div>Team</div>
+        <div>Logout</div>
+      </div>
+    </div>
+    <div class="do"><b>你要做的：</b>打开 <b>railway.com</b> 登录，点右上角那个圆形头像，会弹出一个菜单。</div>
+    <div class="see">提示：如果已经登录，直接做这步就行。</div>
+  </div>
+
+  <div class="step" id="s2">
+    <h2><span class="badge">2</span> 选 Account Settings（账户设置）</h2>
+    <div class="mock">
+      <div class="cap">↑ 头像菜单里点 "Account Settings"，左边栏找 GitHub / Connected Accounts</div>
+      <div class="rw-set">
+        <div class="rw-side">
+          <div class="s">General</div>
+          <div class="s on">Connected Accounts</div>
+          <div class="s">Tokens</div>
+          <div class="s">Usage</div>
+        </div>
+        <div class="rw-main">
+          <div class="rw-card">
+            <div>
+              <div class="lbl">GitHub</div>
+              <div class="sub">Not connected</div>
+            </div>
+            <button class="rw-btn">Connect</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="do"><b>你要做的：</b>在弹出的菜单里点 <b>Account Settings</b>，进入后在左侧找 <b>GitHub</b> 或 <b>Connected Accounts</b>，右边会看到一个 GitHub 行和 <b>Connect</b> 按钮。</div>
+  </div>
+
+  <div class="step" id="s3">
+    <h2><span class="badge">3</span> 点 Connect GitHub</h2>
+    <div class="mock">
+      <div class="cap">↑ 点这个 Connect（连接）按钮，浏览器会自动跳到 GitHub</div>
+      <div class="rw-main" style="min-height:90px; display:flex; align-items:center;">
+        <button class="rw-btn" style="font-size:14px; padding:10px 18px;">Connect GitHub</button>
+        <span style="color:#9aa1ad; font-size:13px; margin-left:12px;">→ 点击后跳转到 github.com 授权页</span>
+      </div>
+    </div>
+    <div class="do"><b>你要做的：</b>点 <b>Connect GitHub</b>。点了之后浏览器会<b>自动打开 GitHub 的页面</b>让你确认——这是正常的，不是在乱跳。</div>
+    <div class="see">如果没跳，检查浏览器是不是拦截了弹出窗口，允许一下再点一次。</div>
+  </div>
+
+  <div class="step" id="s4">
+    <h2><span class="badge">4</span> GitHub 页面：选仓库，点 Install</h2>
+    <div class="mock">
+      <div class="cap">↑ GitHub 授权页，选能访问的仓库，勾选你的项目，点绿色 Install</div>
+      <div class="gh">
+        <h3>Railway 想要访问你的账户</h3>
+        <div class="row sel">● All repositories（全部仓库，最省事）</div>
+        <div class="row">○ Only select repositories（仅指定仓库）<br><span class="repo" style="margin-left:18px;">✓ kenwei1688/my-xiaomi</span></div>
+        <div class="note">建议直接选 "All repositories"，或至少勾选 kenwei1688/my-xiaomi。</div>
+        <button class="install">Install</button>
+        <button class="cancel">Cancel</button>
+      </div>
+    </div>
+    <div class="do"><b>你要做的：</b>在 GitHub 页面，仓库权限那里<b>勾选 <span style="font-family:monospace;">kenwei1688/my-xiaomi</span></b>（或选 All repositories 省事），然后点绿色 <b>Install / Authorize</b> 按钮。</div>
+    <div class="see">装完会自动跳回 Railway，说明绑定成功。</div>
+  </div>
+
+  <div class="step" id="s5">
+    <h2><span class="badge">5</span> 回 Railway，开启自动部署</h2>
+    <div class="mock">
+      <div class="cap">↑ 项目 → 服务 → Settings → Source，点 Enable 开启自动部署</div>
+      <div class="rw-set">
+        <div class="rw-side">
+          <div class="s">General</div>
+          <div class="s on">Source</div>
+          <div class="s">Variables</div>
+          <div class="s">Deployments</div>
+        </div>
+        <div class="rw-main">
+          <div class="rw-card">
+            <div>
+              <div class="lbl">GitHub · kenwei1688/my-xiaomi</div>
+              <div class="sub">Branch: main · autodeploy off</div>
+            </div>
+            <button class="rw-btn green">Enable</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="do"><b>你要做的：</b>回到项目 <b>2026-08-09-12-47-29</b> → 点服务 → <b>Settings → Source</b>。如果那里显示仓库已连接且有 <b>Enable（启用）</b> 按钮，点一下，自动部署就开了。</div>
+    <div class="see">开启后，以后你（或我）往 GitHub 推代码，Railway 就会自动部署，不用再手动操作。</div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="warn" id="help">
+    <b>卡住怎么办？</b><br>
+    1. 做完第 5 步 Source 仍显示未连接：打开 <span style="font-family:monospace;">github.com/settings/installations</span>，确认里面那个 <b>Railway</b> 应用能访问 <span style="font-family:monospace;">kenwei1688/my-xiaomi</span> 这个仓库。<br>
+    2. 嫌麻烦不想装：Railway 服务页也有个手动 <b>Deploy</b> 按钮，每次手动从 GitHub 拉最新代码部署也能上线，只是不自动。<br>
+    3. 弄完告诉我，我推一个测试提交帮你验证"push 即部署"是否跑通。
+  </div>
+</footer>
+</body>
+</html>

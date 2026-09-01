@@ -497,3 +497,84 @@ const RECENT_ORDERS = [
     { id: 'ORD20260725007', merchant: '老王川菜馆', item: '外卖订单', price: 45, status: 'completed', statusText: '已完成', date: '2026-07-25', seed: 'order7', quantity: 1 },
     { id: 'ORD20260720008', merchant: '欢乐谷主题公园', item: '全天通票2张', price: 460, status: 'refund', statusText: '已退款', date: '2026-07-20', seed: 'order8', quantity: 2 },
 ];
+
+// ===== 小目标 =====
+const GOALS = [
+    {
+        id: 1,
+        title: '每月读完2本书',
+        desc: '坚持阅读，拓宽视野',
+        target: '2本/月',
+        progress: 50,
+        deadline: '2026-08-31',
+        status: 'active',
+        bg: 'linear-gradient(135deg,#FF6B35,#FF9A56)',
+        icon: '📖',
+    },
+    {
+        id: 2,
+        title: '坚持跑步30天',
+        desc: '每天至少3公里，强健体魄',
+        target: '30天',
+        progress: 73,
+        deadline: '2026-08-31',
+        status: 'active',
+        bg: 'linear-gradient(135deg,#FF2D55,#FF6B6B)',
+        icon: '🏃',
+    },
+    {
+        id: 3,
+        title: '学会做5道拿手菜',
+        desc: '从简单到复杂，逐步提升厨艺',
+        target: '5道菜',
+        progress: 40,
+        deadline: '2026-09-15',
+        status: 'active',
+        bg: 'linear-gradient(135deg,#34C759,#30D158)',
+        icon: '🍳',
+    },
+];
+
+// ===== 计划 =====
+const PLANS = [
+    {
+        id: 1,
+        title: '周末出游计划',
+        content: '1. 提前预订酒店\n2. 准备出行物品清单\n3. 规划游玩路线\n4. 预订返程车票',
+        status: 'pending',
+        dueDate: '2026-08-24',
+        bg: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
+        icon: '📋',
+    },
+    {
+        id: 2,
+        title: '季度工作总结',
+        content: '1. 整理Q2工作成果\n2. 统计关键数据指标\n3. 撰写总结报告\n4. 准备汇报PPT',
+        status: 'pending',
+        dueDate: '2026-08-31',
+        bg: 'linear-gradient(135deg,#5856D6,#7B79F0)',
+        icon: '📊',
+    },
+];
+
+// ===== 日记 =====
+const DIARY = [
+    {
+        id: 1,
+        title: '充实的一天',
+        content: '今天过得格外充实。早上起来跑了5公里，感觉整个人都精神了不少。上午处理完手头的工作，中午和同事一起去尝试了新开的那家日料店，味道还不错。\n\n下午参加了一个很有意思的技术分享会，学到了不少新东西。下班后去健身房练了一小时，虽然有些累，但心情格外好。\n\n生活就是这样，由无数个平凡但充实的日子组成。希望明天也能这样积极。',
+        mood: '开心',
+        date: '2026-08-19',
+        bg: 'linear-gradient(135deg,#FF9500,#FFB800)',
+        icon: '📖',
+    },
+    {
+        id: 2,
+        title: '周末放松日',
+        content: '难得的周末，决定好好放松一下。睡到自然醒，然后泡了杯咖啡，坐在阳台上看了会儿书。下午去附近的公园散步，秋天的阳光很舒服。\n\n晚上在家做了一顿简单的晚餐，边吃边看了一部老电影。虽然没什么特别的事情发生，但这种平静的感觉真的很珍贵。',
+        mood: '平静',
+        date: '2026-08-18',
+        bg: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
+        icon: '📖',
+    },
+];

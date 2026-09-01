@@ -19,6 +19,9 @@ function imgStyle(imgStr) {
 // ===== localStorage 持久化 =====
 const STORAGE_KEY_TRIPS = 'shenghuo_trips';
 const STORAGE_KEY_REMINDERS = 'shenghuo_reminders';
+const STORAGE_KEY_GOALS = 'shenghuo_goals';
+const STORAGE_KEY_PLANS = 'shenghuo_plans';
+const STORAGE_KEY_DIARY = 'shenghuo_diary';
 
 function saveTripsToStorage() {
     try {
@@ -39,6 +42,36 @@ function saveRemindersToStorage() {
             else if (res && res.status === 401) { API.clearToken(); showToast('云端登录已过期，请重新登录'); }
         }).catch(e => console.warn('[Cloud] 同步失败：', e));
     }
+}
+
+function saveGoalsToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_GOALS, JSON.stringify(GOALS)); } catch(e) {}
+}
+function savePlansToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_PLANS, JSON.stringify(PLANS)); } catch(e) {}
+}
+function saveDiaryToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_DIARY, JSON.stringify(DIARY)); } catch(e) {}
+}
+
+// 从 localStorage 恢复 goals/plans/diary
+function loadGoalsFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_GOALS);
+        if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length > 0) { GOALS.length = 0; arr.forEach(g => GOALS.push(g)); } }
+    } catch(e) {}
+}
+function loadPlansFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_PLANS);
+        if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length > 0) { PLANS.length = 0; arr.forEach(p => PLANS.push(p)); } }
+    } catch(e) {}
+}
+function loadDiaryFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_DIARY);
+        if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length > 0) { DIARY.length = 0; arr.forEach(d => DIARY.push(d)); } }
+    } catch(e) {}
 }
 
 // 云端提醒 → 前端本地结构（补全 bg 渐变，渲染需要）

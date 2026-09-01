@@ -1,12 +1,63 @@
 // ==================== 生活小秘 - AI 对话引擎 ====================
 // 意图识别 + 实体提取 + 多轮对话 + 数据驱动回复
+// 双引擎：规则兜底 + DeepSeek/OpenAI 大模型增强（有 API key 时自动启用）
+
+const https = require('https');
 
 class AIEngine {
   constructor(database, store) {
     this.db = database;
-    this.store = store; // 持久化层（用户/提醒/行程），可能为 undefined（兼容旧调用）
+    this.store = store; // 持久化层（用户/提醒/行程/目标/计划/日记），可能为 undefined（兼容旧调用）
     this.sessions = new Map();
     this.botName = '小秘';
+
+    // ===== LLM 配置（DeepSeek / OpenAI 兼容接口） =====
+    this.llmApiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || '';
+    this.llmBaseUrl = process.env.LLM_BASE_URL || (process.env.DEEPSEEK_API_KEY ? 'api.deepseek.com' : 'api.openai.com');
+    this.llmModel = process.env.LLM_MODEL || (process.env.DEEPSEEK_API_KEY ? 'deepseek-chat' : 'gpt-4o-mini');
+    this.llmEnabled = !!this.llmApiKey;
+    if (this.llmEnabled) {
+      console.log(`[ai-engine] LLM 已启用: ${this.llmModel} @ ${this.llmBaseUrl}`);
+    } else {
+      console.log('[ai-engine] LLM 未配置 API key，使用规则引擎兜底模式');
+    }
+  }
+
+  // ===== 调用 LLM（OpenAI 兼容 /chat/completions） =====
+  async callLLM(messages, tools = null) {
+    if (!this.llmEnabled) return null;
+    return new Promise((resolve) => {
+      const body = { model: this.llmModel, messages, stream: false };
+      if (tools && tools.length > 0) {
+        body.tools = tools.map(t => ({ type: 'function', function: t }));
+        body.tool_choice = 'auto';
+      }
+      const payload = JSON.stringify(body);
+      const options = {
+        hostname: this.llmBaseUrl,
+        port: 443,
+        path: '/v1/chat/completions',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.llmApiKey}`,
+          'Content-Length': Buffer.byteLength(payload),
+        },
+        timeout: 30000,
+      };
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+      req.write(payload);
+      req.end();
+    });
   }
 
   // ===== 会话管理 =====
@@ -25,7 +76,7 @@ class AIEngine {
   }
 
   // ===== 主入口 =====
-  chat(message, sessionId = 'default', userId = null) {
+  async chat(message, sessionId = 'default', userId = null) {
     const session = this.getSession(sessionId);
     // 登录用户 id 绑定到会话，会话内创建的提醒/行程落该用户云端空间
     if (userId) session.userId = userId;
@@ -37,7 +88,7 @@ class AIEngine {
     // 实体提取
     const entities = this.extractEntities(msg, intent);
     // 生成回复
-    const response = this.generateResponse(intent, entities, message, session);
+    const response = await this.generateResponse(intent, entities, message, session);
 
     session.history.push({ role: 'bot', text: response.reply });
     session.lastIntent = intent.type;
@@ -156,6 +207,20 @@ class AIEngine {
     if (/(删除|删掉|去掉|取消|不要|清除|关闭)(.*?)(提醒|闹钟)/.test(msg) || /(提醒|闹钟).*(删除|删掉|去掉|取消|不要|关闭)/.test(msg)) {
       return { type: 'delete_reminder', confidence: 0.9 };
     }
+
+    // 写日记
+    if (/(写.*日记|日记.*写|记录.*今天|今天.*记录|写一篇|帮我写|记一篇)/.test(msg)) {
+      return { type: 'write_diary', confidence: 0.9 };
+    }
+    // 定小目标
+    if (/(定.*目标|设.*目标|小目标|目标.*定|我想.*完成|我要.*做到|立.*flag)/.test(msg)) {
+      return { type: 'add_goal', confidence: 0.9 };
+    }
+    // 做计划
+    if (/(做.*计划|制定.*计划|计划.*做|帮我.*计划|安排.*计划|列.*计划)/.test(msg)) {
+      return { type: 'add_plan', confidence: 0.9 };
+    }
+
     // 查看行程/提醒（引导用户去个人中心）
     if (/(查看.*行程|看.*行程|我的行程|查看.*提醒|看.*提醒|我的提醒)/.test(msg)) {
       return { type: 'view_profile', confidence: 0.9 };
@@ -354,6 +419,67 @@ class AIEngine {
       }
     }
 
+    // ===== 日记实体提取 =====
+    if (intent.type === 'write_diary') {
+      // 提取日记主题（从消息中清洗出主题关键词）
+      entities.diaryTopic = msg;
+      // 提取日期
+      if (/(今天|今日)/.test(msg)) {
+        entities.diaryDate = new Date().toISOString().slice(0, 10);
+      } else if (/(昨天|昨日)/.test(msg)) {
+        const y = new Date(); y.setDate(y.getDate() - 1);
+        entities.diaryDate = y.toISOString().slice(0, 10);
+      } else {
+        entities.diaryDate = new Date().toISOString().slice(0, 10);
+      }
+      // 提取心情
+      if (/(开心|快乐|高兴|愉快)/.test(msg)) entities.diaryMood = '开心';
+      else if (/(难过|伤心|失落)/.test(msg)) entities.diaryMood = '难过';
+      else if (/(激动|兴奋)/.test(msg)) entities.diaryMood = '激动';
+      else if (/(平静|平淡)/.test(msg)) entities.diaryMood = '平静';
+      else if (/(累|疲惫)/.test(msg)) entities.diaryMood = '疲惫';
+      else entities.diaryMood = '平静';
+    }
+
+    // ===== 小目标实体提取 =====
+    if (intent.type === 'add_goal') {
+      // 提取目标标题（从消息中清洗）
+      entities.goalTitle = msg
+        .replace(/帮我|请|我想|我要|定个|设个|立个|制定|设定|小目标|目标|完成|做到|flag/g, '')
+        .replace(/['""'''"]/g, '')
+        .trim()
+        .substring(0, 30) || '新目标';
+      // 提取截止日期
+      if (/(本月底|月底)/.test(msg)) {
+        const d = new Date(); d.setMonth(d.getMonth() + 1, 0);
+        entities.goalDeadline = d.toISOString().slice(0, 10);
+      } else if (/(本周末|周末)/.test(msg)) {
+        const d = new Date(); d.setDate(d.getDate() + (6 - d.getDay()));
+        entities.goalDeadline = d.toISOString().slice(0, 10);
+      } else if (/(下个月|下月)/.test(msg)) {
+        const d = new Date(); d.setMonth(d.getMonth() + 1);
+        entities.goalDeadline = d.toISOString().slice(0, 10);
+      }
+    }
+
+    // ===== 计划实体提取 =====
+    if (intent.type === 'add_plan') {
+      entities.planTitle = msg
+        .replace(/帮我|请|我想|我要|做个|制定个|列个|安排个|计划/g, '')
+        .replace(/['""'''"]/g, '')
+        .trim()
+        .substring(0, 30) || '新计划';
+      if (/(今天|今日)/.test(msg)) {
+        entities.planDueDate = new Date().toISOString().slice(0, 10);
+      } else if (/(明天|明)/.test(msg)) {
+        const d = new Date(); d.setDate(d.getDate() + 1);
+        entities.planDueDate = d.toISOString().slice(0, 10);
+      } else if (/(本周末|周末)/.test(msg)) {
+        const d = new Date(); d.setDate(d.getDate() + (6 - d.getDay()));
+        entities.planDueDate = d.toISOString().slice(0, 10);
+      }
+    }
+
     return entities;
   }
 
@@ -372,7 +498,7 @@ class AIEngine {
   }
 
   // ===== 回复生成 =====
-  generateResponse(intent, entities, originalMsg, session) {
+  async generateResponse(intent, entities, originalMsg, session) {
     switch (intent.type) {
       case 'greeting':
         return this.handleGreeting(session);
@@ -394,6 +520,12 @@ class AIEngine {
         return this.handleBookKTV(entities, session);
       case 'add_reminder':
         return this.handleAddReminder(entities, session, originalMsg);
+      case 'write_diary':
+        return await this.handleWriteDiary(entities, session, originalMsg);
+      case 'add_goal':
+        return this.handleAddGoal(entities, session, originalMsg);
+      case 'add_plan':
+        return this.handleAddPlan(entities, session, originalMsg);
       case 'delete_trip':
         return this.handleDeleteTrip(entities, session, originalMsg);
       case 'delete_reminder':
@@ -419,7 +551,7 @@ class AIEngine {
           actions: []
         };
       default:
-        return this.handleGeneral(originalMsg, session);
+        return await this.handleGeneral(originalMsg, session);
     }
   }
 
@@ -427,8 +559,8 @@ class AIEngine {
   handleGreeting(session) {
     session.state = 'idle';
     return {
-      reply: `你好呀！我是${this.botName}，您的智能生活助手。我可以帮您：\n\n🍜 点外卖 / 订餐厅\n🏨 预订酒店\n🚄 买火车票 / 飞机票\n🎬 买电影票 / 订KTV\n🗺️ 智能规划出行行程\n\n直接告诉我你想做什么就行～`,
-      actions: ['点外卖', '订酒店', '规划行程', '附近美食']
+      reply: `你好呀！我是${this.botName}，您的智能生活助手。我可以帮您：\n\n🍜 点外卖 / 订餐厅\n🏨 预订酒店\n🚄 买火车票 / 飞机票\n🎬 买电影票 / 订KTV\n🗺️ 智能规划出行行程\n📖 写日记 / 定小目标 / 做计划\n\n直接告诉我你想做什么就行～`,
+      actions: ['点外卖', '规划行程', '写日记', '定个小目标']
     };
   }
 
@@ -724,10 +856,175 @@ class AIEngine {
     };
   }
 
+  // ===== 写日记 =====
+  async handleWriteDiary(entities, session, originalMsg) {
+    session.state = 'idle';
+    const date = entities.diaryDate || new Date().toISOString().slice(0, 10);
+    const mood = entities.diaryMood || '平静';
+    const topic = entities.diaryTopic || originalMsg;
+
+    // 提取日记标题（从主题中截取关键词）
+    let title = '今日日记';
+    const topicClean = topic.replace(/帮我|请|写一篇|写个|记一篇|记录|今天|今日|的|日记/g, '').trim();
+    if (topicClean.length > 0 && topicClean.length <= 20) {
+      title = topicClean + '日记';
+    } else if (topicClean.length > 20) {
+      title = topicClean.substring(0, 15) + '...日记';
+    }
+
+    let content = '';
+
+    // ===== 有 LLM 时：调用大模型生成日记正文 =====
+    if (this.llmEnabled) {
+      const messages = [
+        {
+          role: 'system',
+          content: `你是一个温暖的日记写作助手。请根据用户的要求写一篇日记，要求：
+1. 第一人称视角，语气自然真实
+2. 200-400字
+3. 包含具体细节和感受
+4. 不要用 markdown 格式，纯文本即可
+5. 直接输出日记正文，不要加"亲爱的日记"之类的前缀`
+        },
+        {
+          role: 'user',
+          content: `请帮我写一篇日记。主题/背景：${originalMsg}。日期：${date}。心情：${mood}。`
+        }
+      ];
+      const llmResp = await this.callLLM(messages);
+      if (llmResp && llmResp.choices && llmResp.choices[0]) {
+        content = llmResp.choices[0].message.content.trim();
+      }
+    }
+
+    // ===== 无 LLM 或 LLM 失败时：规则模板兜底 =====
+    if (!content) {
+      content = this.generateDiaryTemplate(originalMsg, date, mood);
+    }
+
+    // 创建日记（登录用户落云端，未登录回退内存）
+    const diaryData = { title, content, mood, date };
+    let newDiary;
+    if (session.userId && this.store) {
+      newDiary = this.store.createDiary(session.userId, diaryData);
+    } else {
+      newDiary = Object.assign({ id: Date.now() + '_tmp', createdAt: new Date().toISOString() }, diaryData);
+    }
+
+    const moodEmoji = { '开心': '😊', '难过': '😢', '激动': '🤩', '平静': '😌', '疲惫': '😮‍💨' }[mood] || '😌';
+
+    return {
+      reply: `好的！已为您写好一篇日记 ✅\n\n📖 标题：${title}\n📅 日期：${date}\n${moodEmoji} 心情：${mood}\n\n${content.substring(0, 100)}...\n\n（完整内容已保存到「我的-我的日记」中）`,
+      actions: ['再写一篇', '规划行程', '定个小目标'],
+      diaryCreated: {
+        id: newDiary.id,
+        title: newDiary.title,
+        content: newDiary.content,
+        mood: newDiary.mood,
+        date: newDiary.date,
+      },
+    };
+  }
+
+  // 日记模板生成（规则兜底）
+  generateDiaryTemplate(topic, date, mood) {
+    const moodTexts = {
+      '开心': '今天心情格外好，',
+      '难过': '今天有些低落，',
+      '激动': '今天格外激动，',
+      '平静': '今天过得很平静，',
+      '疲惫': '今天有些疲惫，',
+    };
+    const intro = moodTexts[mood] || '今天，';
+    // 从主题提取关键词
+    const cleanTopic = topic.replace(/帮我|请|写一篇|写个|记一篇|记录|今天|今日|的|日记/g, '').trim() || '这一天';
+
+    return `${intro}回想这一天的经历，感触颇多。\n\n${cleanTopic}——这件事让我印象深刻。早上起床后，心里就有些期待。一天的安排从 breakfast 开始，简单却温馨。\n\n白天的主要时光都花在了${cleanTopic}上。过程中遇到了一些小插曲，但也正是这些意外让今天变得与众不同。身边的人都很友善，让我感到温暖。\n\n傍晚时分，回头看这一天，虽然不算完美，但每一刻都值得记住。生活就是这样，由无数个平凡的日子组成，而今天，是其中特别的一天。\n\n希望明天也能这样充实。晚安。`;
+  }
+
+  // ===== 定小目标 =====
+  handleAddGoal(entities, session, originalMsg) {
+    session.state = 'idle';
+    const title = entities.goalTitle || '新目标';
+    const deadline = entities.goalDeadline || '';
+
+    const goalData = {
+      title,
+      desc: originalMsg,
+      target: '',
+      progress: 0,
+      deadline,
+      status: 'active',
+    };
+    let newGoal;
+    if (session.userId && this.store) {
+      newGoal = this.store.createGoal(session.userId, goalData);
+    } else {
+      newGoal = Object.assign({ id: Date.now() + '_tmp', createdAt: new Date().toISOString() }, goalData);
+    }
+
+    const deadlineText = deadline ? `\n⏰ 截止日期：${deadline}` : '';
+    return {
+      reply: `好的！已为您创建小目标 ✅\n\n🎯 目标：${title}\n📝 描述：${originalMsg}${deadlineText}\n📊 进度：0%\n\n已自动添加到「我的-我的小目标」中，随时可以更新进度！`,
+      actions: ['再定一个', '做个计划', '规划行程'],
+      goalCreated: {
+        id: newGoal.id,
+        title: newGoal.title,
+        desc: newGoal.desc,
+        target: newGoal.target,
+        progress: newGoal.progress,
+        deadline: newGoal.deadline,
+        status: newGoal.status,
+      },
+    };
+  }
+
+  // ===== 做计划 =====
+  handleAddPlan(entities, session, originalMsg) {
+    session.state = 'idle';
+    const title = entities.planTitle || '新计划';
+    const dueDate = entities.planDueDate || '';
+
+    // 生成计划内容
+    const content = this.generatePlanContent(originalMsg, title);
+
+    const planData = {
+      title,
+      content,
+      status: 'pending',
+      dueDate,
+    };
+    let newPlan;
+    if (session.userId && this.store) {
+      newPlan = this.store.createPlan(session.userId, planData);
+    } else {
+      newPlan = Object.assign({ id: Date.now() + '_tmp', createdAt: new Date().toISOString() }, planData);
+    }
+
+    const dueText = dueDate ? `\n⏰ 截止日期：${dueDate}` : '';
+    return {
+      reply: `好的！已为您制定计划 ✅\n\n📋 计划：${title}\n📝 内容：\n${content}${dueText}\n\n已自动添加到「我的-我的计划」中，完成后可标记为已完成！`,
+      actions: ['再做一个', '定个小目标', '规划行程'],
+      planCreated: {
+        id: newPlan.id,
+        title: newPlan.title,
+        content: newPlan.content,
+        status: newPlan.status,
+        dueDate: newPlan.dueDate,
+      },
+    };
+  }
+
+  // 计划内容生成（规则模板）
+  generatePlanContent(originalMsg, title) {
+    return `【${title}】执行计划：\n\n1. 明确目标：确定具体要达成的结果和衡量标准\n2. 拆解步骤：将大目标分解为可执行的小步骤\n3. 时间安排：为每个步骤设定合理的完成时间\n4. 资源准备：列出需要的资源和支持\n5. 执行跟进：每天/每周检查进度，及时调整\n6. 复盘总结：完成后总结经验，持续改进\n\n备注：${originalMsg}`;
+  }
+
   // ===== 删除行程 =====
   handleDeleteTrip(entities, session, originalMsg) {
     session.state = 'idle';
-    const allTrips = this.db.getTrips();
+    const uid = session.userId;
+    const allTrips = (uid && this.store) ? this.store.getTrips(uid) : this.db.getTrips();
 
     if (allTrips.length === 0) {
       return {
@@ -770,7 +1067,7 @@ class AIEngine {
     // 删除匹配的行程
     const deletedTrips = [];
     for (const trip of matchedTrips) {
-      const deleted = this.db.deleteTrip(trip.id);
+      const deleted = (uid && this.store) ? this.store.deleteTrip(uid, trip.id) : this.db.deleteTrip(trip.id);
       if (deleted) deletedTrips.push(deleted);
     }
 
@@ -792,7 +1089,8 @@ class AIEngine {
   // ===== 删除提醒 =====
   handleDeleteReminder(entities, session, originalMsg) {
     session.state = 'idle';
-    const allReminders = this.db.getReminders();
+    const uid = session.userId;
+    const allReminders = (uid && this.store) ? this.store.getReminders(uid) : this.db.getReminders();
 
     if (allReminders.length === 0) {
       return {
@@ -833,7 +1131,7 @@ class AIEngine {
     // 删除匹配的提醒
     const deletedReminders = [];
     for (const reminder of matchedReminders) {
-      const deleted = this.db.deleteReminder(reminder.id);
+      const deleted = (uid && this.store) ? this.store.deleteReminder(uid, reminder.id) : this.db.deleteReminder(reminder.id);
       if (deleted) deletedReminders.push(deleted);
     }
 
@@ -1030,14 +1328,32 @@ class AIEngine {
   handleViewProfile(session) {
     session.state = 'idle';
     return {
-      reply: '您可以点击底部「我的」Tab，在个人中心查看您的全部行程规划和提醒事项。\n\n🗺️ 我的行程 — 查看所有已规划的旅行行程\n⏰ 我的提醒 — 查看所有提醒事项\n\n也可以直接跟我说要规划行程或添加提醒，我会自动帮您创建！',
-      actions: ['规划行程', '添加提醒', '回到首页']
+      reply: '您可以点击底部「我的」Tab，在个人中心查看您的全部内容：\n\n🗺️ 我的行程 — 查看所有已规划的旅行行程\n⏰ 我的提醒 — 查看所有提醒事项\n🎯 我的小目标 — 查看和管理目标进度\n📋 我的计划 — 查看和执行计划\n📖 我的日记 — 回顾写过的日记\n\n也可以直接跟我说要做什么，我会自动帮您创建！',
+      actions: ['规划行程', '添加提醒', '写日记', '定个小目标']
     };
   }
 
   // ===== 通用回复 =====
-  handleGeneral(msg, session) {
-    // 尝试从消息中提取关键词搜索
+  async handleGeneral(msg, session) {
+    // 有 LLM 时：尝试用大模型回复
+    if (this.llmEnabled) {
+      const messages = [
+        {
+          role: 'system',
+          content: `你是"${this.botName}"，一个温暖的智能生活助手。你可以帮用户：点外卖、订餐厅、订酒店、规划出行行程、设提醒、写日记、定小目标、做计划等。请用简短友好的语气回答，如果用户的需求涉及上述功能，引导他们直接说出来。回复控制在100字以内。`
+        },
+        { role: 'user', content: msg }
+      ];
+      const llmResp = await this.callLLM(messages);
+      if (llmResp && llmResp.choices && llmResp.choices[0]) {
+        return {
+          reply: llmResp.choices[0].message.content.trim(),
+          actions: ['点外卖', '规划行程', '写日记', '定个小目标']
+        };
+      }
+    }
+
+    // 规则兜底：尝试从消息中提取关键词搜索
     const merchants = this.db.searchMerchants(msg);
 
     if (merchants.length > 0) {

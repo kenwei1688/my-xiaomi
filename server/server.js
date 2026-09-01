@@ -167,6 +167,21 @@ async function handleApi(req, res, pathname, method) {
           'GET  /api/trips',
           'POST /api/trips',
           'DELETE /api/trips/:id',
+          '-- 云端小目标（需登录） --',
+          'GET  /api/goals',
+          'POST /api/goals',
+          'PUT  /api/goals/:id',
+          'DELETE /api/goals/:id',
+          '-- 云端计划（需登录） --',
+          'GET  /api/plans',
+          'POST /api/plans',
+          'PUT  /api/plans/:id',
+          'DELETE /api/plans/:id',
+          '-- 云端日记（需登录） --',
+          'GET  /api/diary',
+          'POST /api/diary',
+          'PUT  /api/diary/:id',
+          'DELETE /api/diary/:id',
           '-- 其余只读 / AI --',
           'GET  /api/categories / banners / merchants / deals / flash-sales',
           'GET  /api/interests / recommendations / newest / orders / user',
@@ -258,6 +273,84 @@ async function handleApi(req, res, pathname, method) {
       if (method === 'DELETE' && id) {
         const t = store.deleteTrip(uid, id);
         if (!t) return sendError(res, '行程不存在', 404);
+        return sendJSON(res, { ok: true, id });
+      }
+      return sendError(res, '不支持的操作', 405);
+    }
+
+    // ===== 云端小目标（需登录，按用户隔离） =====
+    if (resource === 'goals') {
+      const uid = getUid(req);
+      if (!uid) return sendError(res, '请先登录', 401);
+      if (method === 'GET') {
+        return sendJSON(res, { goals: store.getGoals(uid) });
+      }
+      if (method === 'POST') {
+        const body = await parseBody(req);
+        const g = store.createGoal(uid, body);
+        return sendJSON(res, { goal: g }, 201);
+      }
+      if (method === 'PUT' && id) {
+        const body = await parseBody(req);
+        const g = store.updateGoal(uid, id, body);
+        if (!g) return sendError(res, '目标不存在', 404);
+        return sendJSON(res, { goal: g });
+      }
+      if (method === 'DELETE' && id) {
+        const g = store.deleteGoal(uid, id);
+        if (!g) return sendError(res, '目标不存在', 404);
+        return sendJSON(res, { ok: true, id });
+      }
+      return sendError(res, '不支持的操作', 405);
+    }
+
+    // ===== 云端计划（需登录，按用户隔离） =====
+    if (resource === 'plans') {
+      const uid = getUid(req);
+      if (!uid) return sendError(res, '请先登录', 401);
+      if (method === 'GET') {
+        return sendJSON(res, { plans: store.getPlans(uid) });
+      }
+      if (method === 'POST') {
+        const body = await parseBody(req);
+        const p = store.createPlan(uid, body);
+        return sendJSON(res, { plan: p }, 201);
+      }
+      if (method === 'PUT' && id) {
+        const body = await parseBody(req);
+        const p = store.updatePlan(uid, id, body);
+        if (!p) return sendError(res, '计划不存在', 404);
+        return sendJSON(res, { plan: p });
+      }
+      if (method === 'DELETE' && id) {
+        const p = store.deletePlan(uid, id);
+        if (!p) return sendError(res, '计划不存在', 404);
+        return sendJSON(res, { ok: true, id });
+      }
+      return sendError(res, '不支持的操作', 405);
+    }
+
+    // ===== 云端日记（需登录，按用户隔离） =====
+    if (resource === 'diary') {
+      const uid = getUid(req);
+      if (!uid) return sendError(res, '请先登录', 401);
+      if (method === 'GET') {
+        return sendJSON(res, { diary: store.getDiaries(uid) });
+      }
+      if (method === 'POST') {
+        const body = await parseBody(req);
+        const d = store.createDiary(uid, body);
+        return sendJSON(res, { diary: d }, 201);
+      }
+      if (method === 'PUT' && id) {
+        const body = await parseBody(req);
+        const d = store.updateDiary(uid, id, body);
+        if (!d) return sendError(res, '日记不存在', 404);
+        return sendJSON(res, { diary: d });
+      }
+      if (method === 'DELETE' && id) {
+        const d = store.deleteDiary(uid, id);
+        if (!d) return sendError(res, '日记不存在', 404);
         return sendJSON(res, { ok: true, id });
       }
       return sendError(res, '不支持的操作', 405);
@@ -395,7 +488,7 @@ async function handleApi(req, res, pathname, method) {
         return sendError(res, '消息不能为空', 400);
       }
 
-      const response = ai.chat(message, sessionId, uid);
+      const response = await ai.chat(message, sessionId, uid);
       const responseData = {
         reply: response.reply,
         cards: response.cards || [],
@@ -423,6 +516,15 @@ async function handleApi(req, res, pathname, method) {
       }
       if (response.reminderDeletedAll) {
         responseData.reminderDeletedAll = response.reminderDeletedAll;
+      }
+      if (response.goalCreated) {
+        responseData.goalCreated = response.goalCreated;
+      }
+      if (response.planCreated) {
+        responseData.planCreated = response.planCreated;
+      }
+      if (response.diaryCreated) {
+        responseData.diaryCreated = response.diaryCreated;
       }
       return sendJSON(res, {
         success: true,

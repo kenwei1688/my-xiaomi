@@ -289,12 +289,6 @@ const API = {
         const reminders = await this.get('/api/reminders');
         if (Array.isArray(reminders) && reminders.length > 0) {
           REMINDERS.length = 0;
-          const bgMap = {
-            work: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
-            offwork: 'linear-gradient(135deg,#34C759,#30D158)',
-            travel: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
-            custom: 'linear-gradient(135deg,#FF9500,#FFB800)',
-          };
           reminders.forEach(r => {
             REMINDERS.push({
               id: r.id,
@@ -304,8 +298,8 @@ const API = {
               time: r.time,
               repeat: r.repeat,
               enabled: r.enabled,
-              icon: r.icon || 'bell',
-              bg: bgMap[r.type] || bgMap.custom,
+              icon: r.icon || reminderIcon(r.type),
+              bg: r.bg || reminderBg(r.type),
               date: r.date,
             });
           });

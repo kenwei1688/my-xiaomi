@@ -148,7 +148,10 @@
 
                     <!-- 快捷指令 -->
                     <div class="quick-actions">
-                        <div class="quick-action-title">小秘帮你办</div>
+                        <div class="quick-action-head">
+                            <div class="quick-action-title">小秘帮你办</div>
+                            <div class="quick-action-manage" onclick="openQuickActionManage()">管理</div>
+                        </div>
                         <div class="quick-action-grid" id="quickActionGrid"></div>
                     </div>
 
@@ -237,6 +240,33 @@
                                 <span class="more-link" onclick="openReminderSettings()">提醒设置 ›</span>
                             </div>
                             <div class="reminder-list" id="reminderList"></div>
+                        </div>
+
+                        <!-- 我的计划 -->
+                        <div class="profile-section">
+                            <div class="section-header">
+                                <h3>我的计划</h3>
+                                <span class="more-link" onclick="addPlan()">+ 新建计划</span>
+                            </div>
+                            <div class="plan-list" id="planList"></div>
+                        </div>
+
+                        <!-- 我的小目标 -->
+                        <div class="profile-section">
+                            <div class="section-header">
+                                <h3>我的小目标</h3>
+                                <span class="more-link" onclick="addGoal()">+ 新建目标</span>
+                            </div>
+                            <div class="goal-list" id="goalList"></div>
+                        </div>
+
+                        <!-- 我的日记 -->
+                        <div class="profile-section">
+                            <div class="section-header">
+                                <h3>我的日记</h3>
+                                <span class="more-link" onclick="addDiary()">+ 写日记</span>
+                            </div>
+                            <div class="diary-list" id="diaryList"></div>
                         </div>
 
                         <!-- 订单管理 -->

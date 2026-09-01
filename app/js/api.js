@@ -84,6 +84,54 @@ const API = {
     return this._req('POST', '/api/reminders', { reminders: list });
   },
 
+  // ===== 小目标 =====
+  async cloudPullGoals() {
+    const { status, data } = await this._req('GET', '/api/goals');
+    if (status === 200 && data && Array.isArray(data.goals)) return data.goals;
+    return null;
+  },
+  async cloudCreateGoal(goal) {
+    return this._req('POST', '/api/goals', goal);
+  },
+  async cloudUpdateGoal(id, patch) {
+    return this._req('PUT', '/api/goals/' + id, patch);
+  },
+  async cloudDeleteGoal(id) {
+    return this._req('DELETE', '/api/goals/' + id);
+  },
+
+  // ===== 计划 =====
+  async cloudPullPlans() {
+    const { status, data } = await this._req('GET', '/api/plans');
+    if (status === 200 && data && Array.isArray(data.plans)) return data.plans;
+    return null;
+  },
+  async cloudCreatePlan(plan) {
+    return this._req('POST', '/api/plans', plan);
+  },
+  async cloudUpdatePlan(id, patch) {
+    return this._req('PUT', '/api/plans/' + id, patch);
+  },
+  async cloudDeletePlan(id) {
+    return this._req('DELETE', '/api/plans/' + id);
+  },
+
+  // ===== 日记 =====
+  async cloudPullDiary() {
+    const { status, data } = await this._req('GET', '/api/diary');
+    if (status === 200 && data && Array.isArray(data.diary)) return data.diary;
+    return null;
+  },
+  async cloudCreateDiary(diary) {
+    return this._req('POST', '/api/diary', diary);
+  },
+  async cloudUpdateDiary(id, patch) {
+    return this._req('PUT', '/api/diary/' + id, patch);
+  },
+  async cloudDeleteDiary(id) {
+    return this._req('DELETE', '/api/diary/' + id);
+  },
+
   // 检测后端是否可用
   async check() {
     try {
@@ -394,6 +442,56 @@ const API = {
           });
         }
       } catch(e) { console.log('[API] 提醒数据使用本地'); }
+
+      // ===== 加载小目标 =====
+      try {
+        const goals = await this.cloudPullGoals();
+        if (goals && goals.length > 0) {
+          GOALS.length = 0;
+          const goalBgs = ['linear-gradient(135deg,#FF6B35,#FF9A56)','linear-gradient(135deg,#FF2D55,#FF6B6B)','linear-gradient(135deg,#34C759,#30D158)','linear-gradient(135deg,#007AFF,#5AC8FA)','linear-gradient(135deg,#AF52DE,#D65BFF)'];
+          const goalIcons = ['📖','🏃','🍳','💪','🎯','✨','📚','🧘'];
+          goals.forEach((g, i) => {
+            GOALS.push({
+              id: g.id, title: g.title, desc: g.desc || '',
+              target: g.target || '', progress: g.progress || 0,
+              deadline: g.deadline || '', status: g.status || 'active',
+              bg: goalBgs[i % goalBgs.length], icon: goalIcons[i % goalIcons.length],
+            });
+          });
+        }
+      } catch(e) { console.log('[API] 目标数据使用本地'); }
+
+      // ===== 加载计划 =====
+      try {
+        const plans = await this.cloudPullPlans();
+        if (plans && plans.length > 0) {
+          PLANS.length = 0;
+          const planBgs = ['linear-gradient(135deg,#007AFF,#5AC8FA)','linear-gradient(135deg,#5856D6,#7B79F0)','linear-gradient(135deg,#FF9500,#FFB800)','linear-gradient(135deg,#34C759,#30D158)'];
+          plans.forEach((p, i) => {
+            PLANS.push({
+              id: p.id, title: p.title, content: p.content || '',
+              status: p.status || 'pending', dueDate: p.dueDate || '',
+              bg: planBgs[i % planBgs.length], icon: '📋',
+            });
+          });
+        }
+      } catch(e) { console.log('[API] 计划数据使用本地'); }
+
+      // ===== 加载日记 =====
+      try {
+        const diaries = await this.cloudPullDiary();
+        if (diaries && diaries.length > 0) {
+          DIARY.length = 0;
+          const diaryBgs = ['linear-gradient(135deg,#FF9500,#FFB800)','linear-gradient(135deg,#00C7BE,#30D5C8)','linear-gradient(135deg,#FF6B35,#FF9A56)','linear-gradient(135deg,#AF52DE,#D65BFF)'];
+          diaries.forEach((d, i) => {
+            DIARY.push({
+              id: d.id, title: d.title, content: d.content || '',
+              mood: d.mood || '平静', date: d.date || '',
+              bg: diaryBgs[i % diaryBgs.length], icon: '📖',
+            });
+          });
+        }
+      } catch(e) { console.log('[API] 日记数据使用本地'); }
 
       console.log('[API] 数据加载完成 ✓');
     } catch (e) {

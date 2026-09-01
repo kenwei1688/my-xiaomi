@@ -19,6 +19,10 @@ function imgStyle(imgStr) {
 // ===== localStorage 持久化 =====
 const STORAGE_KEY_TRIPS = 'shenghuo_trips';
 const STORAGE_KEY_REMINDERS = 'shenghuo_reminders';
+const STORAGE_KEY_PLANS = 'shenghuo_plans';
+const STORAGE_KEY_GOALS = 'shenghuo_goals';
+const STORAGE_KEY_DIARY = 'shenghuo_diary';
+const STORAGE_KEY_QUICK_ACTIONS = 'shenghuo_quick_actions';
 
 function saveTripsToStorage() {
     try {
@@ -32,6 +36,19 @@ function saveRemindersToStorage() {
     } catch(e) { console.warn('[Storage] 保存提醒失败:', e); }
     // 每次提醒变更都同步给原生，由原生负责系统闹钟调度
     syncRemindersToNative();
+}
+
+function savePlansToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_PLANS, JSON.stringify(PLANS)); } catch(e) { console.warn('[Storage] 保存计划失败:', e); }
+}
+function saveGoalsToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_GOALS, JSON.stringify(GOALS)); } catch(e) { console.warn('[Storage] 保存目标失败:', e); }
+}
+function saveDiaryToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_DIARY, JSON.stringify(DIARY)); } catch(e) { console.warn('[Storage] 保存日记失败:', e); }
+}
+function saveQuickActionsToStorage() {
+    try { localStorage.setItem(STORAGE_KEY_QUICK_ACTIONS, JSON.stringify(QUICK_ACTIONS)); } catch(e) { console.warn('[Storage] 保存快捷指令失败:', e); }
 }
 
 // 把提醒同步给 APP 原生层（调度系统闹钟/短信/通知），并请求必要权限
@@ -84,6 +101,26 @@ function loadFromStorage() {
                 parsed.forEach(r => REMINDERS.push(r));
                 console.log('[Storage] 恢复提醒数据:', parsed.length, '条');
             }
+        }
+        const plansData = localStorage.getItem(STORAGE_KEY_PLANS);
+        if (plansData) {
+            const parsed = JSON.parse(plansData);
+            if (Array.isArray(parsed)) { PLANS.length = 0; parsed.forEach(x => PLANS.push(x)); }
+        }
+        const goalsData = localStorage.getItem(STORAGE_KEY_GOALS);
+        if (goalsData) {
+            const parsed = JSON.parse(goalsData);
+            if (Array.isArray(parsed)) { GOALS.length = 0; parsed.forEach(x => GOALS.push(x)); }
+        }
+        const diaryData = localStorage.getItem(STORAGE_KEY_DIARY);
+        if (diaryData) {
+            const parsed = JSON.parse(diaryData);
+            if (Array.isArray(parsed)) { DIARY.length = 0; parsed.forEach(x => DIARY.push(x)); }
+        }
+        const quickActionsData = localStorage.getItem(STORAGE_KEY_QUICK_ACTIONS);
+        if (quickActionsData) {
+            const parsed = JSON.parse(quickActionsData);
+            if (Array.isArray(parsed) && parsed.length > 0) { QUICK_ACTIONS.length = 0; parsed.forEach(x => QUICK_ACTIONS.push(x)); }
         }
     } catch(e) { console.warn('[Storage] 加载数据失败:', e); }
 }
@@ -152,6 +189,9 @@ async function init() {
     renderSettingsList();
     renderTripPlans();
     renderReminders();
+    renderPlans();
+    renderGoals();
+    renderDiary();
     renderUserProfile();
     initChat();
     bindScrollReport();
@@ -221,6 +261,9 @@ function switchPage(pageId) {
     if (pageId === 'profile') {
         renderTripPlans();
         renderReminders();
+        renderPlans();
+        renderGoals();
+        renderDiary();
         clearProfileBadge();
     }
 }
@@ -464,6 +507,89 @@ function quickAction(name) {
     sendMessage();
 }
 
+// ===== 快捷指令管理（自定义增删） =====
+const QA_PALETTE = [
+    'linear-gradient(135deg,#FF6B35,#FF9A56)',
+    'linear-gradient(135deg,#34C759,#30D158)',
+    'linear-gradient(135deg,#007AFF,#5AC8FA)',
+    'linear-gradient(135deg,#AF52DE,#D65BFF)',
+    'linear-gradient(135deg,#FF9500,#FFB800)',
+    'linear-gradient(135deg,#FF2D55,#FF6B6B)',
+    'linear-gradient(135deg,#5856D6,#7B79F0)',
+    'linear-gradient(135deg,#00C7BE,#30D5C8)',
+];
+const QA_ICON_OPTIONS = [
+    { key: 'food', name: '美食' }, { key: 'star', name: '收藏' }, { key: 'store', name: '店铺' },
+    { key: 'car', name: '打车' }, { key: 'plane', name: '飞机' }, { key: 'camera', name: '景点' },
+    { key: 'dumbbell', name: '健身' }, { key: 'mic', name: 'KTV' }, { key: 'film', name: '电影' },
+    { key: 'gift', name: '礼物' }, { key: 'calendar', name: '会议' }, { key: 'money', name: '钱包' },
+];
+
+function openQuickActionManage() {
+    const items = QUICK_ACTIONS.map((a, i) => `
+        <div class="qa-manage-item">
+            <div class="qa-icon" style="background:${a.bg};">${wrapSvg(a.svg, 18)}</div>
+            <div class="qa-manage-name">${a.name}</div>
+            <div class="qa-manage-del" onclick="removeQuickAction(${i})">×</div>
+        </div>
+    `).join('');
+    const iconOptions = QA_ICON_OPTIONS.map(o =>
+        `<div class="qa-icon-pick" data-icon="${o.key}" onclick="pickQuickActionIcon(this)" title="${o.name}">${wrapSvg(SVG[o.key], 18)}</div>`).join('');
+    showModal(`
+        <div class="add-reminder-form" style="max-height:80vh;overflow-y:auto;">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:8px;">管理快捷指令</div>
+            <div style="font-size:12px;color:var(--text-3);text-align:center;margin-bottom:14px;">删除不需要的指令，或添加你自己的常用指令</div>
+            <div class="qa-manage-list">${items || '<div style="text-align:center;color:var(--text-3);font-size:13px;padding:10px;">暂无快捷指令</div>'}</div>
+            <div style="margin:14px 0;height:1px;background:var(--border);"></div>
+            <div class="form-group">
+                <label>新指令名称</label>
+                <input type="text" id="qaName" placeholder="如：订外卖 / 提醒我开会" />
+            </div>
+            <div class="form-group">
+                <label>选择图标</label>
+                <div class="qa-icon-picker" id="qaIconPicker">${iconOptions}</div>
+            </div>
+            <button class="form-submit-btn" onclick="submitQuickAction()">添加指令</button>
+        </div>
+    `);
+    // 默认选中第一个图标
+    const first = document.querySelector('.qa-icon-pick');
+    if (first) first.classList.add('selected');
+}
+
+let _pickedQaIcon = 'food';
+function pickQuickActionIcon(el) {
+    document.querySelectorAll('.qa-icon-pick').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    _pickedQaIcon = el.dataset.icon;
+}
+
+function submitQuickAction() {
+    const name = document.getElementById('qaName').value.trim();
+    if (!name) { showToast('请输入指令名称'); return; }
+    const exists = QUICK_ACTIONS.find(a => a.name === name);
+    if (exists) { showToast('该指令已存在'); return; }
+    QUICK_ACTIONS.push({
+        name: name,
+        svg: SVG[_pickedQaIcon] || SVG.food,
+        bg: QA_PALETTE[QUICK_ACTIONS.length % QA_PALETTE.length],
+    });
+    saveQuickActionsToStorage();
+    closeModal();
+    renderQuickActions();
+    showToast('快捷指令已添加');
+}
+
+function removeQuickAction(index) {
+    const a = QUICK_ACTIONS[index];
+    if (!a) return;
+    QUICK_ACTIONS.splice(index, 1);
+    saveQuickActionsToStorage();
+    renderQuickActions();
+    openQuickActionManage(); // 刷新管理列表
+    showToast('已删除「' + a.name + '」');
+}
+
 // ===== 小秘：聊天 =====
 function initChat() {
     addBotMessage('你好呀！我是小秘，你的智能生活管家～\n有什么需要帮忙的尽管跟我说！\n\n我可以帮你：点外卖、订餐厅、订酒店、买火车票/飞机票、规划行程、买电影票、订KTV包厢等。');
@@ -604,12 +730,6 @@ function handleAITripCreated(trip) {
 
 // AI 创建提醒后自动同步到个人中心
 function handleAIReminderCreated(reminder) {
-    const bgMap = {
-        work: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
-        offwork: 'linear-gradient(135deg,#34C759,#30D158)',
-        travel: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
-        custom: 'linear-gradient(135deg,#FF9500,#FFB800)',
-    };
     const newReminder = {
         id: reminder.id || Date.now(),
         type: reminder.type || 'custom',
@@ -618,8 +738,8 @@ function handleAIReminderCreated(reminder) {
         time: reminder.time || '08:00',
         repeat: reminder.repeat || '仅一次',
         enabled: reminder.enabled !== false,
-        icon: reminder.icon || 'bell',
-        bg: bgMap[reminder.type] || bgMap.custom,
+        icon: reminder.icon || reminderIcon(reminder.type),
+        bg: reminder.bg || reminderBg(reminder.type),
         method: reminder.method || 'alarm',
         date: reminder.date,
     };
@@ -792,9 +912,13 @@ async function sendMessage() {
             if (/(所有|全部|清空)/.test(text)) { matched = [...REMINDERS]; }
             if (matched.length === 0 && /(上班|打卡上班|早起|起床)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'work'); }
             else if (matched.length === 0 && /(下班|打卡下班)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'offwork'); }
-            else if (matched.length === 0 && /(出行|出差|出发|赶飞机|赶火车|登机|航班|高铁|动车)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'travel'); }
+            else if (matched.length === 0 && /(生日|寿星|庆生)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'birthday'); }
+            else if (matched.length === 0 && /(会议|开会|例会|周会)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'meeting'); }
+            else if (matched.length === 0 && /(出差)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'business_trip'); }
+            else if (matched.length === 0 && /(还钱|还款|还贷|还花呗|信用卡|欠款)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'repayment'); }
+            else if (matched.length === 0 && /(出行|出发|赶飞机|赶火车|登机|航班|高铁|动车)/.test(text)) { matched = REMINDERS.filter(r => r.type === 'travel'); }
             if (matched.length === 0) {
-                const kw = text.replace(/删除|删掉|去掉|取消|不要|清除|关闭|的|提醒|闹钟|帮我|请|把|那|个|条|所有|全部|上班|下班|出行|出差/g, '').trim();
+                const kw = text.replace(/删除|删掉|去掉|取消|不要|清除|关闭|的|提醒|闹钟|帮我|请|把|那|个|条|所有|全部|上班|下班|出行|出差|生日|会议|还钱/g, '').trim();
                 if (kw) matched = REMINDERS.filter(r => r.title.includes(kw) || r.desc.includes(kw));
             }
             if (matched.length === 0) {
@@ -851,14 +975,18 @@ async function sendMessage() {
             setTimeout(() => showToast('已自动添加行程到我的行程'), 500);
             return;
         }
-        // 本地意图检测：添加提醒
-        if (/(提醒我|提醒一下|设个提醒|设置提醒|帮我提醒|加个提醒|上班提醒|下班提醒|出行提醒|记得.*提醒|别忘了)/.test(text)) {
+        // 本地意图检测：添加提醒（提醒关键词优先，覆盖 7 类提醒）
+        if (/(提醒我|提醒一下|设个提醒|设置提醒|帮我提醒|加个提醒|上班提醒|下班提醒|出行提醒|出差提醒|生日提醒|会议提醒|还钱提醒|记得.*提醒|别忘了|设个闹钟|定个闹钟)/.test(text)) {
             let rType = 'custom', rTitle = '自定义提醒', rIcon = 'bell';
-            if (/(上班|打卡上班|早起|起床)/.test(text)) { rType = 'work'; rTitle = '上班提醒'; rIcon = 'clock'; }
+            if (/(生日|寿星|庆生|诞辰)/.test(text)) { rType = 'birthday'; rTitle = '生日提醒'; rIcon = 'gift'; }
+            else if (/(会议|开会|例会|周会|评审)/.test(text)) { rType = 'meeting'; rTitle = '会议提醒'; rIcon = 'calendar'; }
+            else if (/(出差)/.test(text)) { rType = 'business_trip'; rTitle = '出差提醒'; rIcon = 'briefcase'; }
+            else if (/(还钱|还款|还贷|还花呗|还信用卡|欠款|债务)/.test(text)) { rType = 'repayment'; rTitle = '还钱提醒'; rIcon = 'money'; }
+            else if (/(上班|打卡上班|早起|起床)/.test(text)) { rType = 'work'; rTitle = '上班提醒'; rIcon = 'clock'; }
             else if (/(下班|打卡下班)/.test(text)) { rType = 'offwork'; rTitle = '下班提醒'; rIcon = 'clock'; }
-            else if (/(出行|出差|出发|赶飞机|赶火车|登机|航班|高铁|动车)/.test(text)) { rType = 'travel'; rTitle = '出行提醒'; rIcon = 'plane'; }
+            else if (/(出行|出发|赶飞机|赶火车|登机|航班|高铁|动车)/.test(text)) { rType = 'travel'; rTitle = '出行提醒'; rIcon = 'plane'; }
             else {
-                rTitle = text.replace(/提醒我|提醒一下|设个提醒|设置提醒|帮我提醒|加个提醒|记得提醒|别忘了|用?(闹钟|短信|微信)(提醒|通知)?|明天|今天|后天|早上|上午|下午|晚上|\d+[:：点]\d*|点/g, '').trim().substring(0, 20) || '自定义提醒';
+                rTitle = text.replace(/提醒我|提醒一下|设个提醒|设置提醒|帮我提醒|加个提醒|记得提醒|别忘了|设个闹钟|定个闹钟|用?(闹钟|短信|微信)(提醒|通知)?|明天|今天|后天|早上|上午|下午|晚上|\d+[:：点]\d*|点/g, '').trim().substring(0, 20) || '自定义提醒';
             }
             // 提醒方式：短信 / 微信 / 闹钟
             let rMethod = 'alarm';
@@ -890,12 +1018,6 @@ async function sendMessage() {
                 });
                 return;
             }
-            const bgMap = {
-                work: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
-                offwork: 'linear-gradient(135deg,#34C759,#30D158)',
-                travel: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
-                custom: 'linear-gradient(135deg,#FF9500,#FFB800)',
-            };
             const newReminder = {
                 id: Date.now(),
                 type: rType,
@@ -906,7 +1028,7 @@ async function sendMessage() {
                 enabled: true,
                 method: rMethod,
                 icon: rIcon,
-                bg: bgMap[rType],
+                bg: reminderBg(rType),
             };
             REMINDERS.push(newReminder);
             saveRemindersToStorage();
@@ -935,6 +1057,13 @@ function methodBadge(method) {
 function methodBadgeText(method) {
     const m = METHOD_CONFIG[method] || METHOD_CONFIG.alarm;
     return m.icon + ' 提醒方式：' + m.label;
+}
+// 生成提醒类型下拉选项（来自 data.js 的 REMINDER_TYPES 集中配置）
+function reminderTypeOptions(selected) {
+    return Object.keys(REMINDER_TYPES).map(k => {
+        const t = REMINDER_TYPES[k];
+        return `<option value="${k}" ${selected === k ? 'selected' : ''}>${t.label}</option>`;
+    }).join('');
 }
 
 // ===== 提醒下次触发时间计算（与 Android 原生一致，用于浏览器兜底 & 文案） =====
@@ -1189,13 +1318,6 @@ function confirmDraftReminder(draftId) {
     const method = (methodEl && methodEl.value) || 'alarm';
     const draft = window.__draftReminders ? window.__draftReminders[draftId] : null;
     if (!draft) { showToast('草稿已失效，请重新添加'); return; }
-    const iconMap = { work: 'clock', offwork: 'clock', travel: 'plane', custom: 'bell' };
-    const bgMap = {
-        work: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
-        offwork: 'linear-gradient(135deg,#34C759,#30D158)',
-        travel: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
-        custom: 'linear-gradient(135deg,#FF9500,#FFB800)',
-    };
     const newReminder = {
         id: Date.now(),
         type: draft.type || 'custom',
@@ -1205,8 +1327,8 @@ function confirmDraftReminder(draftId) {
         repeat: draft.repeat || '仅一次',
         enabled: true,
         method: method,
-        icon: iconMap[draft.type] || 'bell',
-        bg: bgMap[draft.type] || bgMap.custom,
+        icon: reminderIcon(draft.type),
+        bg: reminderBg(draft.type),
     };
     REMINDERS.push(newReminder);
     saveRemindersToStorage();
@@ -1636,8 +1758,7 @@ function editReminder(id) {
     if (!r) return;
     const repeatOpts = ['仅一次','每天','工作日重复','每周','每月','每年'].map(v =>
         `<option value="${v}" ${r.repeat === v ? 'selected' : ''}>${v}</option>`).join('');
-    const typeOpts = [['custom','自定义'],['work','上班提醒'],['offwork','下班提醒'],['travel','出行提醒']].map(([v,l]) =>
-        `<option value="${v}" ${r.type === v ? 'selected' : ''}>${l}</option>`).join('');
+    const typeOpts = reminderTypeOptions(r.type);
     const methodOpts = ['alarm','sms','wechat'].map(k =>
         `<option value="${k}" ${r.method === k ? 'selected' : ''}>${METHOD_CONFIG[k].icon} ${METHOD_CONFIG[k].label}</option>`).join('');
     showModal(`
@@ -1700,13 +1821,8 @@ function updateReminder(id) {
     r.type = type;
     r.method = method;
     r.enabled = enabled;
-    r.icon = { work: 'clock', offwork: 'clock', travel: 'plane', custom: 'bell' }[type] || 'bell';
-    r.bg = {
-        work: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
-        offwork: 'linear-gradient(135deg,#34C759,#30D158)',
-        travel: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
-        custom: 'linear-gradient(135deg,#FF9500,#FFB800)',
-    }[type] || 'linear-gradient(135deg,#FF9500,#FFB800)';
+    r.icon = reminderIcon(type);
+    r.bg = reminderBg(type);
     closeModal();
     saveRemindersToStorage();
     renderReminders();
@@ -1782,12 +1898,7 @@ function addReminder() {
             </div>
             <div class="form-group">
                 <label>类型</label>
-                <select id="remType">
-                    <option value="custom">自定义</option>
-                    <option value="work">上班提醒</option>
-                    <option value="offwork">下班提醒</option>
-                    <option value="travel">出行提醒</option>
-                </select>
+                <select id="remType">${reminderTypeOptions('custom')}</select>
             </div>
             <div class="form-group">
                 <label>提醒方式</label>
@@ -1819,14 +1930,6 @@ function submitReminder() {
         return;
     }
 
-    const iconMap = { work: 'clock', offwork: 'clock', travel: 'plane', custom: 'bell' };
-    const bgMap = {
-        work: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
-        offwork: 'linear-gradient(135deg,#34C759,#30D158)',
-        travel: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
-        custom: 'linear-gradient(135deg,#FF9500,#FFB800)',
-    };
-
     const newReminder = {
         id: Date.now(),
         type: type,
@@ -1836,8 +1939,8 @@ function submitReminder() {
         repeat: repeat,
         enabled: true,
         method: method,
-        icon: iconMap[type] || 'bell',
-        bg: bgMap[type] || bgMap.custom,
+        icon: reminderIcon(type),
+        bg: reminderBg(type),
     };
     REMINDERS.push(newReminder);
     closeModal();
@@ -1854,6 +1957,486 @@ function deleteReminder(id) {
         closeModal();
         renderReminders();
         showToast('提醒已删除');
+    }
+}
+
+// ===== 我的计划 =====
+const PLAN_PALETTE = [
+    { icon: 'star', bg: 'linear-gradient(135deg,#FF6B35,#FF9A56)', tagColor: '#FF6B35' },
+    { icon: 'plane', bg: 'linear-gradient(135deg,#007AFF,#5AC8FA)', tagColor: '#007AFF' },
+    { icon: 'store', bg: 'linear-gradient(135deg,#34C759,#30D158)', tagColor: '#34C759' },
+    { icon: 'camera', bg: 'linear-gradient(135deg,#AF52DE,#D65BFF)', tagColor: '#AF52DE' },
+    { icon: 'dumbbell', bg: 'linear-gradient(135deg,#FF2D55,#FF6B6B)', tagColor: '#FF2D55' },
+    { icon: 'briefcase', bg: 'linear-gradient(135deg,#FF9500,#FFB800)', tagColor: '#FF9500' },
+];
+function planPalette(i) { return PLAN_PALETTE[i % PLAN_PALETTE.length]; }
+
+function renderPlans() {
+    const list = document.getElementById('planList');
+    if (!list) return;
+    const plans = PLANS.slice(0, 3);
+    if (plans.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">暂无计划，点击右上角新建</div>';
+        return;
+    }
+    list.innerHTML = plans.map(p => {
+        const done = p.status === 'done';
+        return `
+        <div class="plan-card" onclick="showPlanDetail(${p.id})">
+            <div class="plan-icon-box" style="background:${p.bg};">${wrapSvg(SVG[p.icon] || SVG.star, 20)}</div>
+            <div class="plan-content">
+                <div class="plan-title-row">
+                    <span class="plan-title ${done ? 'done' : ''}">${p.title}</span>
+                    <span class="plan-tag" style="color:${p.tagColor};background:${p.tagColor}1a;">${p.tag || '计划'}</span>
+                </div>
+                <div class="plan-desc">${p.desc || ''}</div>
+                <div class="plan-footer">
+                    <div class="plan-progress">
+                        <div class="plan-progress-track"><div class="plan-progress-fill" style="width:${p.progress}%;"></div></div>
+                        <span class="plan-progress-text">${done ? '已完成' : p.progress + '%'}</span>
+                    </div>
+                    <span class="plan-deadline">${done ? '✅ 已达成' : '截止 ' + (p.deadline || '未设置')}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function showPlanDetail(id) {
+    const p = PLANS.find(x => x.id === id);
+    if (!p) return;
+    const done = p.status === 'done';
+    showModal(`
+        <div style="padding:20px;">
+            <div style="text-align:center;margin-bottom:14px;">
+                <div style="width:56px;height:56px;border-radius:16px;background:${p.bg};display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">${wrapSvg(SVG[p.icon] || SVG.star, 28)}</div>
+                <div style="font-size:18px;font-weight:700;">${p.title}</div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:4px;">${p.tag || ''} · 截止 ${p.deadline || '未设置'}</div>
+            </div>
+            <div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:14px;font-size:14px;color:var(--text-2);">${p.desc || '暂无描述'}</div>
+            <div style="margin-bottom:16px;">
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;">完成进度 ${p.progress}%</div>
+                <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${p.progress}%;background:linear-gradient(90deg,#FF6B35,#FFB627);"></div></div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button class="form-submit-btn" style="background:var(--bg);color:var(--text-1);" onclick="deletePlan(${p.id})">删除</button>
+                <button class="form-submit-btn" style="background:var(--bg);color:var(--text-1);" onclick="editPlan(${p.id})">编辑</button>
+                <button class="form-submit-btn" onclick="togglePlanDone(${p.id})">${done ? '标记进行中' : '标记完成'}</button>
+            </div>
+        </div>
+    `);
+}
+
+function addPlan() {
+    showModal(`
+        <div class="add-reminder-form">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:16px;">新建计划</div>
+            <div class="form-group"><label>计划名称</label><input type="text" id="planTitle" placeholder="如：国庆云南深度游" /></div>
+            <div class="form-group"><label>计划描述</label><textarea id="planDesc" placeholder="简单描述计划内容..."></textarea></div>
+            <div class="form-row">
+                <div class="form-group"><label>分类</label><input type="text" id="planTag" placeholder="如：旅行 / 生活 / 学习" /></div>
+                <div class="form-group"><label>截止日期</label><input type="date" id="planDeadline" /></div>
+            </div>
+            <button class="form-submit-btn" onclick="submitPlan()">创建计划</button>
+        </div>
+    `);
+}
+
+function submitPlan() {
+    const title = document.getElementById('planTitle').value.trim();
+    if (!title) { showToast('请填写计划名称'); return; }
+    const palette = planPalette(PLANS.length);
+    const newPlan = {
+        id: Date.now(),
+        title: title,
+        desc: document.getElementById('planDesc').value.trim(),
+        tag: document.getElementById('planTag').value.trim() || '计划',
+        tagColor: palette.tagColor,
+        deadline: document.getElementById('planDeadline').value || '未设置',
+        status: 'active',
+        progress: 0,
+        icon: palette.icon,
+        bg: palette.bg,
+    };
+    PLANS.unshift(newPlan);
+    closeModal();
+    savePlansToStorage();
+    renderPlans();
+    showToast('计划创建成功！');
+}
+
+function editPlan(id) {
+    const p = PLANS.find(x => x.id === id);
+    if (!p) return;
+    showModal(`
+        <div class="add-reminder-form">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:16px;">编辑计划</div>
+            <div class="form-group"><label>计划名称</label><input type="text" id="planTitle" value="${p.title}" /></div>
+            <div class="form-group"><label>计划描述</label><textarea id="planDesc">${p.desc || ''}</textarea></div>
+            <div class="form-row">
+                <div class="form-group"><label>分类</label><input type="text" id="planTag" value="${p.tag || ''}" /></div>
+                <div class="form-group"><label>截止日期</label><input type="date" id="planDeadline" value="${p.deadline && p.deadline !== '未设置' ? p.deadline : ''}" /></div>
+            </div>
+            <div class="form-group"><label>完成进度（%）</label><input type="number" id="planProgress" value="${p.progress}" min="0" max="100" /></div>
+            <button class="form-submit-btn" onclick="updatePlan(${p.id})">保存修改</button>
+        </div>
+    `);
+}
+
+function updatePlan(id) {
+    const p = PLANS.find(x => x.id === id);
+    if (!p) return;
+    const title = document.getElementById('planTitle').value.trim();
+    if (!title) { showToast('请填写计划名称'); return; }
+    p.title = title;
+    p.desc = document.getElementById('planDesc').value.trim();
+    p.tag = document.getElementById('planTag').value.trim() || '计划';
+    p.deadline = document.getElementById('planDeadline').value || '未设置';
+    const prog = parseInt(document.getElementById('planProgress').value);
+    p.progress = isNaN(prog) ? p.progress : Math.max(0, Math.min(100, prog));
+    p.status = p.progress >= 100 ? 'done' : 'active';
+    closeModal();
+    savePlansToStorage();
+    renderPlans();
+    showToast('计划已更新');
+}
+
+function togglePlanDone(id) {
+    const p = PLANS.find(x => x.id === id);
+    if (!p) return;
+    p.status = p.status === 'done' ? 'active' : 'done';
+    if (p.status === 'done') p.progress = 100;
+    closeModal();
+    savePlansToStorage();
+    renderPlans();
+    showToast(p.status === 'done' ? '太棒了，计划已完成！' : '已标记为进行中');
+}
+
+function deletePlan(id) {
+    const idx = PLANS.findIndex(x => x.id === id);
+    if (idx >= 0) {
+        PLANS.splice(idx, 1);
+        savePlansToStorage();
+        closeModal();
+        renderPlans();
+        showToast('计划已删除');
+    }
+}
+
+// ===== 我的小目标 =====
+const GOAL_PALETTE = [
+    { icon: 'dumbbell', bg: 'linear-gradient(135deg,#FF2D55,#FF6B6B)' },
+    { icon: 'star', bg: 'linear-gradient(135deg,#5856D6,#7B79F0)' },
+    { icon: 'money', bg: 'linear-gradient(135deg,#00C7BE,#30D5C8)' },
+    { icon: 'camera', bg: 'linear-gradient(135deg,#FF9500,#FFB800)' },
+    { icon: 'plane', bg: 'linear-gradient(135deg,#007AFF,#5AC8FA)' },
+];
+function goalPalette(i) { return GOAL_PALETTE[i % GOAL_PALETTE.length]; }
+
+function renderGoals() {
+    const list = document.getElementById('goalList');
+    if (!list) return;
+    const goals = GOALS.slice(0, 3);
+    if (goals.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">暂无目标，点击右上角新建</div>';
+        return;
+    }
+    list.innerHTML = goals.map(g => {
+        const pct = g.target > 0 ? Math.min(100, Math.round(g.current / g.target * 100)) : 0;
+        const done = pct >= 100;
+        return `
+        <div class="goal-card" onclick="showGoalDetail(${g.id})">
+            <div class="goal-icon-box" style="background:${g.bg};">${wrapSvg(SVG[g.icon] || SVG.star, 20)}</div>
+            <div class="goal-content">
+                <div class="goal-title-row">
+                    <span class="goal-title">${g.title}</span>
+                    <span class="goal-value ${done ? 'done' : ''}">${g.current}/${g.target} ${g.unit}</span>
+                </div>
+                <div class="goal-progress"><div class="goal-progress-fill" style="width:${pct}%;"></div></div>
+                <div class="goal-footer">
+                    <span class="goal-desc">${g.desc || ''}</span>
+                    <span class="goal-deadline">${done ? '✅ 已达成' : '截止 ' + (g.deadline || '未设置')}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function showGoalDetail(id) {
+    const g = GOALS.find(x => x.id === id);
+    if (!g) return;
+    const pct = g.target > 0 ? Math.min(100, Math.round(g.current / g.target * 100)) : 0;
+    showModal(`
+        <div style="padding:20px;">
+            <div style="text-align:center;margin-bottom:14px;">
+                <div style="width:56px;height:56px;border-radius:16px;background:${g.bg};display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">${wrapSvg(SVG[g.icon] || SVG.star, 28)}</div>
+                <div style="font-size:18px;font-weight:700;">${g.title}</div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:4px;">${g.desc || ''}</div>
+            </div>
+            <div style="text-align:center;margin-bottom:12px;">
+                <span style="font-size:32px;font-weight:800;color:var(--primary);">${g.current}</span>
+                <span style="font-size:14px;color:var(--text-3);"> / ${g.target} ${g.unit} · ${pct}%</span>
+            </div>
+            <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:16px;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#FF6B35,#FFB627);"></div></div>
+            <div style="text-align:center;font-size:12px;color:var(--text-3);margin-bottom:16px;">截止 ${g.deadline || '未设置'}</div>
+            <div style="display:flex;gap:10px;">
+                <button class="form-submit-btn" style="background:var(--bg);color:var(--text-1);" onclick="deleteGoal(${g.id})">删除</button>
+                <button class="form-submit-btn" style="background:var(--bg);color:var(--text-1);" onclick="editGoal(${g.id})">编辑进度</button>
+                <button class="form-submit-btn" onclick="closeModal()">关闭</button>
+            </div>
+        </div>
+    `);
+}
+
+function addGoal() {
+    showModal(`
+        <div class="add-reminder-form">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:16px;">新建小目标</div>
+            <div class="form-group"><label>目标名称</label><input type="text" id="goalTitle" placeholder="如：减重 10 斤" /></div>
+            <div class="form-group"><label>目标描述</label><textarea id="goalDesc" placeholder="简单描述..."></textarea></div>
+            <div class="form-row">
+                <div class="form-group"><label>目标值</label><input type="number" id="goalTarget" placeholder="10" min="1" /></div>
+                <div class="form-group"><label>当前进度</label><input type="number" id="goalCurrent" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>单位</label><input type="text" id="goalUnit" placeholder="斤 / 本 / 元" /></div>
+                <div class="form-group"><label>截止日期</label><input type="date" id="goalDeadline" /></div>
+            </div>
+            <button class="form-submit-btn" onclick="submitGoal()">创建目标</button>
+        </div>
+    `);
+}
+
+function submitGoal() {
+    const title = document.getElementById('goalTitle').value.trim();
+    const target = parseFloat(document.getElementById('goalTarget').value);
+    if (!title) { showToast('请填写目标名称'); return; }
+    if (isNaN(target) || target <= 0) { showToast('请填写有效的目标值'); return; }
+    const current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+    const palette = goalPalette(GOALS.length);
+    const newGoal = {
+        id: Date.now(),
+        title: title,
+        desc: document.getElementById('goalDesc').value.trim(),
+        current: current,
+        target: target,
+        unit: document.getElementById('goalUnit').value.trim() || '个',
+        deadline: document.getElementById('goalDeadline').value || '未设置',
+        icon: palette.icon,
+        bg: palette.bg,
+    };
+    GOALS.unshift(newGoal);
+    closeModal();
+    saveGoalsToStorage();
+    renderGoals();
+    showToast('目标创建成功！');
+}
+
+function editGoal(id) {
+    const g = GOALS.find(x => x.id === id);
+    if (!g) return;
+    showModal(`
+        <div class="add-reminder-form">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:16px;">编辑目标</div>
+            <div class="form-group"><label>目标名称</label><input type="text" id="goalTitle" value="${g.title}" /></div>
+            <div class="form-group"><label>目标描述</label><textarea id="goalDesc">${g.desc || ''}</textarea></div>
+            <div class="form-row">
+                <div class="form-group"><label>目标值</label><input type="number" id="goalTarget" value="${g.target}" min="1" /></div>
+                <div class="form-group"><label>当前进度</label><input type="number" id="goalCurrent" value="${g.current}" min="0" /></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>单位</label><input type="text" id="goalUnit" value="${g.unit}" /></div>
+                <div class="form-group"><label>截止日期</label><input type="date" id="goalDeadline" value="${g.deadline && g.deadline !== '未设置' ? g.deadline : ''}" /></div>
+            </div>
+            <button class="form-submit-btn" onclick="updateGoal(${g.id})">保存修改</button>
+        </div>
+    `);
+}
+
+function updateGoal(id) {
+    const g = GOALS.find(x => x.id === id);
+    if (!g) return;
+    const title = document.getElementById('goalTitle').value.trim();
+    const target = parseFloat(document.getElementById('goalTarget').value);
+    if (!title) { showToast('请填写目标名称'); return; }
+    if (isNaN(target) || target <= 0) { showToast('请填写有效的目标值'); return; }
+    g.title = title;
+    g.desc = document.getElementById('goalDesc').value.trim();
+    g.current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+    g.target = target;
+    g.unit = document.getElementById('goalUnit').value.trim() || '个';
+    g.deadline = document.getElementById('goalDeadline').value || '未设置';
+    closeModal();
+    saveGoalsToStorage();
+    renderGoals();
+    showToast('目标已更新');
+}
+
+function deleteGoal(id) {
+    const idx = GOALS.findIndex(x => x.id === id);
+    if (idx >= 0) {
+        GOALS.splice(idx, 1);
+        saveGoalsToStorage();
+        closeModal();
+        renderGoals();
+        showToast('目标已删除');
+    }
+}
+
+// ===== 我的日记 =====
+const MOODS = ['😊', '🥰', '😌', '💪', '😎', '🤔', '😢', '😴', '🤩', '😤'];
+const WEATHERS = ['☀️', '🌤️', '☁️', '🌧️', '⛈️', '🌙', '❄️', '🌫️'];
+
+function renderDiary() {
+    const list = document.getElementById('diaryList');
+    if (!list) return;
+    const items = DIARY.slice(0, 3);
+    if (items.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">还没有日记，点击右上角写一篇</div>';
+        return;
+    }
+    list.innerHTML = items.map(d => `
+        <div class="diary-card" onclick="showDiaryDetail(${d.id})">
+            <div class="diary-date-box">
+                <div class="diary-day">${(d.date || '').slice(8, 10) || '—'}</div>
+                <div class="diary-month">${(d.date || '').slice(5, 7) || ''}月</div>
+            </div>
+            <div class="diary-content">
+                <div class="diary-title-row">
+                    <span class="diary-title">${d.title}</span>
+                    <span class="diary-mood">${d.mood || ''} ${d.weather || ''}</span>
+                </div>
+                <div class="diary-preview">${d.content || ''}</div>
+                <div class="diary-tags">${(d.tags || []).map(t => `<span class="diary-tag">#${t}</span>`).join('')}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showDiaryDetail(id) {
+    const d = DIARY.find(x => x.id === id);
+    if (!d) return;
+    showModal(`
+        <div style="padding:20px;max-height:70vh;overflow-y:auto;">
+            <div style="text-align:center;margin-bottom:10px;">
+                <div style="font-size:32px;">${d.mood || '😊'} ${d.weather || ''}</div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:4px;">${d.date || ''}</div>
+            </div>
+            <div style="font-size:19px;font-weight:700;text-align:center;margin-bottom:12px;">${d.title}</div>
+            <div style="background:var(--bg);border-radius:12px;padding:16px;font-size:15px;line-height:1.8;color:var(--text-1);margin-bottom:12px;white-space:pre-wrap;">${d.content || ''}</div>
+            <div style="text-align:center;margin-bottom:16px;">${(d.tags || []).map(t => `<span class="diary-tag" style="font-size:12px;">#${t}</span>`).join(' ')}</div>
+            <div style="display:flex;gap:10px;">
+                <button class="form-submit-btn" style="background:var(--bg);color:var(--text-1);" onclick="deleteDiary(${d.id})">删除</button>
+                <button class="form-submit-btn" style="background:var(--bg);color:var(--text-1);" onclick="editDiary(${d.id})">编辑</button>
+                <button class="form-submit-btn" onclick="closeModal()">关闭</button>
+            </div>
+        </div>
+    `);
+}
+
+function moodPicker(selected) {
+    return MOODS.map(m => `<span class="mood-option ${m === selected ? 'selected' : ''}" onclick="selectMood(this)">${m}</span>`).join('');
+}
+function weatherPicker(selected) {
+    return WEATHERS.map(w => `<span class="mood-option ${w === selected ? 'selected' : ''}" onclick="selectWeather(this)">${w}</span>`).join('');
+}
+function selectMood(el) {
+    document.querySelectorAll('.mood-picker .mood-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+}
+function selectWeather(el) {
+    document.querySelectorAll('.weather-picker .mood-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function addDiary() {
+    const today = new Date().toISOString().split('T')[0];
+    showModal(`
+        <div class="add-reminder-form">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:12px;">写日记</div>
+            <div class="form-group"><label>日期</label><input type="date" id="diaryDate" value="${today}" /></div>
+            <div class="form-group"><label>标题</label><input type="text" id="diaryTitle" placeholder="给今天起个标题" /></div>
+            <div class="form-group">
+                <label>心情</label>
+                <div class="mood-picker">${moodPicker('😊')}</div>
+            </div>
+            <div class="form-group">
+                <label>天气</label>
+                <div class="weather-picker">${weatherPicker('☀️')}</div>
+            </div>
+            <div class="form-group"><label>正文</label><textarea id="diaryContent" style="height:110px;" placeholder="记录今天的点点滴滴..."></textarea></div>
+            <button class="form-submit-btn" onclick="submitDiary()">保存日记</button>
+        </div>
+    `);
+}
+
+function submitDiary() {
+    const title = document.getElementById('diaryTitle').value.trim() || '无标题';
+    const content = document.getElementById('diaryContent').value.trim();
+    if (!content) { showToast('写点内容再保存吧'); return; }
+    const moodEl = document.querySelector('.mood-picker .mood-option.selected');
+    const weatherEl = document.querySelector('.weather-picker .mood-option.selected');
+    const tags = content.match(/#[\u4e00-\u9fa5A-Za-z0-9]+/g) || [];
+    const newDiary = {
+        id: Date.now(),
+        date: document.getElementById('diaryDate').value || new Date().toISOString().split('T')[0],
+        title: title,
+        content: content,
+        mood: moodEl ? moodEl.textContent : '😊',
+        weather: weatherEl ? weatherEl.textContent : '☀️',
+        tags: tags.length ? tags.map(t => t.slice(1)) : ['日记'],
+    };
+    DIARY.unshift(newDiary);
+    closeModal();
+    saveDiaryToStorage();
+    renderDiary();
+    showToast('日记已保存！');
+}
+
+function editDiary(id) {
+    const d = DIARY.find(x => x.id === id);
+    if (!d) return;
+    showModal(`
+        <div class="add-reminder-form">
+            <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:12px;">编辑日记</div>
+            <div class="form-group"><label>日期</label><input type="date" id="diaryDate" value="${d.date || ''}" /></div>
+            <div class="form-group"><label>标题</label><input type="text" id="diaryTitle" value="${d.title}" /></div>
+            <div class="form-group"><label>心情</label><div class="mood-picker">${moodPicker(d.mood || '😊')}</div></div>
+            <div class="form-group"><label>天气</label><div class="weather-picker">${weatherPicker(d.weather || '☀️')}</div></div>
+            <div class="form-group"><label>正文</label><textarea id="diaryContent" style="height:110px;">${d.content || ''}</textarea></div>
+            <button class="form-submit-btn" onclick="updateDiary(${d.id})">保存修改</button>
+        </div>
+    `);
+}
+
+function updateDiary(id) {
+    const d = DIARY.find(x => x.id === id);
+    if (!d) return;
+    const content = document.getElementById('diaryContent').value.trim();
+    if (!content) { showToast('写点内容再保存吧'); return; }
+    const moodEl = document.querySelector('.mood-picker .mood-option.selected');
+    const weatherEl = document.querySelector('.weather-picker .mood-option.selected');
+    const tags = content.match(/#[\u4e00-\u9fa5A-Za-z0-9]+/g) || d.tags || [];
+    d.date = document.getElementById('diaryDate').value || d.date;
+    d.title = document.getElementById('diaryTitle').value.trim() || '无标题';
+    d.content = content;
+    d.mood = moodEl ? moodEl.textContent : d.mood;
+    d.weather = weatherEl ? weatherEl.textContent : d.weather;
+    d.tags = Array.isArray(tags) && tags.length ? tags.map(t => t[0] === '#' ? t.slice(1) : t) : d.tags;
+    closeModal();
+    saveDiaryToStorage();
+    renderDiary();
+    showToast('日记已更新');
+}
+
+function deleteDiary(id) {
+    const idx = DIARY.findIndex(x => x.id === id);
+    if (idx >= 0) {
+        DIARY.splice(idx, 1);
+        saveDiaryToStorage();
+        closeModal();
+        renderDiary();
+        showToast('日记已删除');
     }
 }
 

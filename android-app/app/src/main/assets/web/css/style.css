@@ -2852,3 +2852,347 @@ body {
     width: 100%;
     margin-top: 4px;
 }
+
+/* ==================== 快捷指令管理 ==================== */
+.quick-action-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.quick-action-head .quick-action-title {
+    margin-bottom: 0;
+}
+.quick-action-manage {
+    font-size: 12px;
+    color: var(--primary);
+    font-weight: 600;
+    padding: 2px 10px;
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+    cursor: pointer;
+}
+.quick-action-manage:active {
+    background: var(--primary-light);
+}
+.qa-manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.qa-manage-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+.qa-manage-name {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-1);
+}
+.qa-manage-del {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #FFE5E5;
+    color: var(--red);
+    font-size: 18px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+}
+.qa-icon-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.qa-icon-pick {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+}
+.qa-icon-pick.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* ==================== 我的计划 / 小目标 / 日记 ==================== */
+.plan-list, .goal-list, .diary-list {
+    padding: 4px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* 计划卡片 */
+.plan-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.plan-card:active {
+    transform: scale(0.98);
+}
+.plan-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.plan-content {
+    flex: 1;
+    min-width: 0;
+}
+.plan-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+.plan-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+}
+.plan-title.done {
+    color: var(--text-3);
+    text-decoration: line-through;
+}
+.plan-tag {
+    font-size: 10px;
+    padding: 1px 8px;
+    border-radius: 8px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.plan-desc {
+    font-size: 12px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+}
+.plan-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.plan-progress {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.plan-progress-track {
+    flex: 1;
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.plan-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FF6B35, #FFB627);
+    border-radius: 3px;
+}
+.plan-progress-text {
+    font-size: 10px;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+.plan-deadline {
+    font-size: 10px;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+
+/* 目标卡片 */
+.goal-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.goal-card:active {
+    transform: scale(0.98);
+}
+.goal-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.goal-content {
+    flex: 1;
+    min-width: 0;
+}
+.goal-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.goal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+}
+.goal-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+}
+.goal-value.done {
+    color: var(--green);
+}
+.goal-progress {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.goal-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FF6B35, #FFB627);
+    border-radius: 3px;
+}
+.goal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.goal-desc {
+    font-size: 11px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.goal-deadline {
+    font-size: 10px;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+
+/* 日记卡片 */
+.diary-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.diary-card:active {
+    transform: scale(0.98);
+}
+.diary-date-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #FF6B35, #FF9A56);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.diary-day {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1;
+}
+.diary-month {
+    font-size: 10px;
+    margin-top: 2px;
+}
+.diary-content {
+    flex: 1;
+    min-width: 0;
+}
+.diary-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+.diary-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+}
+.diary-mood {
+    font-size: 13px;
+    white-space: nowrap;
+}
+.diary-preview {
+    font-size: 12px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.diary-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.diary-tag {
+    font-size: 10px;
+    color: var(--primary);
+}
+
+/* 日记心情/天气选择器 */
+.mood-picker, .weather-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mood-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+}
+.mood-option.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}

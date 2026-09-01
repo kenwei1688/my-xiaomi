@@ -39,6 +39,9 @@ const SVG = {
     ticket: '<path d="M3 8a2 2 0 012-2h14a2 2 0 012 2 2 2 0 000 4 2 2 0 01-2 2H5a2 2 0 01-2-2 2 2 0 000-4z" stroke="#fff" stroke-width="2" fill="none"/><path d="M14 6v12" stroke="#fff" stroke-width="2" fill="none"/>',
     edit: '<path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4 12.5-12.5z" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
     refresh: '<path d="M23 4v6h-6M1 20v-6h6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2" stroke="#fff" stroke-width="2" fill="none"/><path d="M3 9h18M8 3v4M16 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2" stroke="#fff" stroke-width="2" fill="none"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 13h18" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    money: '<circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="2" fill="none"/><path d="M14.5 8.5c-.5-1-1.5-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.6 2.5 1.8c1.8.3 2.5.9 2.5 2s-1 2-2.5 2c-1.3 0-2.3-.6-2.8-1.6M12 6.5v11" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
     // UI 图标
     search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z" fill="currentColor"/></svg>',
     starFill: '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
@@ -419,8 +422,24 @@ const TRIP_PLANS = [
     },
 ];
 
-// ===== 提醒事项 =====
+// ===== 提醒类型集中配置（7 类核心提醒 + 自定义） =====
+// type: work=上班打卡 offwork=下班打卡 birthday=生日 meeting=会议 travel=出行 business_trip=出差 repayment=还钱 custom=自定义
 // method: 提醒方式 alarm=闹钟 / sms=短信 / wechat=微信
+const REMINDER_TYPES = {
+    work:          { label: '上班打卡', icon: 'clock',     bg: 'linear-gradient(135deg,#007AFF,#5AC8FA)' },
+    offwork:       { label: '下班打卡', icon: 'clock',     bg: 'linear-gradient(135deg,#34C759,#30D158)' },
+    birthday:      { label: '生日',     icon: 'gift',      bg: 'linear-gradient(135deg,#FF2D55,#FF6B6B)' },
+    meeting:       { label: '会议',     icon: 'calendar',  bg: 'linear-gradient(135deg,#5856D6,#7B79F0)' },
+    travel:        { label: '出行',     icon: 'plane',     bg: 'linear-gradient(135deg,#00C7BE,#30D5C8)' },
+    business_trip: { label: '出差',     icon: 'briefcase', bg: 'linear-gradient(135deg,#AF52DE,#D65BFF)' },
+    repayment:     { label: '还钱',     icon: 'money',     bg: 'linear-gradient(135deg,#FF9500,#FFB800)' },
+    custom:        { label: '自定义',   icon: 'bell',      bg: 'linear-gradient(135deg,#FF9500,#FFB800)' },
+};
+// 根据 type 取图标 / 背景色，兼容旧数据
+function reminderIcon(type) { return (REMINDER_TYPES[type] || REMINDER_TYPES.custom).icon; }
+function reminderBg(type) { return (REMINDER_TYPES[type] || REMINDER_TYPES.custom).bg; }
+
+// ===== 提醒事项 =====
 const REMINDERS = [
     {
         id: 1,
@@ -438,8 +457,8 @@ const REMINDERS = [
         id: 2,
         type: 'offwork',
         title: '下班打卡提醒',
-        desc: '每日 18:00 下班打卡，辛苦了！',
-        time: '18:00',
+        desc: '每日 18:30 下班打卡，辛苦了！',
+        time: '18:30',
         repeat: '工作日重复',
         enabled: true,
         method: 'alarm',
@@ -448,6 +467,31 @@ const REMINDERS = [
     },
     {
         id: 3,
+        type: 'birthday',
+        title: '妈妈生日',
+        desc: '记得提前准备生日礼物和蛋糕🎂',
+        time: '10:00',
+        date: '2026-08-18',
+        repeat: '每年',
+        enabled: true,
+        method: 'sms',
+        icon: 'gift',
+        bg: 'linear-gradient(135deg,#FF2D55,#FF6B6B)',
+    },
+    {
+        id: 4,
+        type: 'meeting',
+        title: '产品周会',
+        desc: '每周五 14:00 团队例会，提前 10 分钟进会。',
+        time: '14:00',
+        repeat: '每周',
+        enabled: true,
+        method: 'alarm',
+        icon: 'calendar',
+        bg: 'linear-gradient(135deg,#5856D6,#7B79F0)',
+    },
+    {
+        id: 5,
         type: 'travel',
         title: '三亚出行提醒',
         desc: '8月20日 07:30 出发前往机场，记得带身份证和防晒霜！',
@@ -460,7 +504,32 @@ const REMINDERS = [
         bg: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
     },
     {
-        id: 4,
+        id: 6,
+        type: 'business_trip',
+        title: '上海出差',
+        desc: '8月22日 08:00 高铁出发，记得带身份证和电脑。',
+        time: '08:00',
+        date: '2026-08-22',
+        repeat: '仅一次',
+        enabled: true,
+        method: 'wechat',
+        icon: 'briefcase',
+        bg: 'linear-gradient(135deg,#AF52DE,#D65BFF)',
+    },
+    {
+        id: 7,
+        type: 'repayment',
+        title: '还花呗',
+        desc: '每月 10 日还款日，别逾期影响征信。',
+        time: '20:00',
+        repeat: '每月',
+        enabled: true,
+        method: 'sms',
+        icon: 'money',
+        bg: 'linear-gradient(135deg,#FF9500,#FFB800)',
+    },
+    {
+        id: 8,
         type: 'custom',
         title: '健身打卡',
         desc: '每周一三五 20:00 健身时间，坚持就是胜利！',
@@ -471,18 +540,111 @@ const REMINDERS = [
         icon: 'dumbbell',
         bg: 'linear-gradient(135deg,#FF9500,#FFB800)',
     },
+];
+
+// ===== 我的计划 =====
+// status: active=进行中 done=已完成
+const PLANS = [
     {
-        id: 5,
-        type: 'custom',
-        title: '妈妈生日',
-        desc: '记得提前准备生日礼物和蛋糕🎂',
-        time: '10:00',
-        date: '2026-08-18',
-        repeat: '每年',
-        enabled: true,
-        method: 'sms',
-        icon: 'gift',
+        id: 1,
+        title: '国庆云南深度游',
+        desc: '大理-丽江-香格里拉 7 日自驾，提前订机票酒店',
+        tag: '旅行', tagColor: '#007AFF',
+        deadline: '2026-09-30',
+        status: 'active',
+        progress: 40,
+        icon: 'plane',
+        bg: 'linear-gradient(135deg,#007AFF,#5AC8FA)',
+    },
+    {
+        id: 2,
+        title: '新家装修计划',
+        desc: '客厅+主卧翻新，已定装修公司，跟进材料选购',
+        tag: '生活', tagColor: '#34C759',
+        deadline: '2026-10-15',
+        status: 'active',
+        progress: 65,
+        icon: 'store',
+        bg: 'linear-gradient(135deg,#34C759,#30D158)',
+    },
+    {
+        id: 3,
+        title: 'Python 进阶学习',
+        desc: '完成爬虫+数据分析实战课程，每周 4 小时',
+        tag: '学习', tagColor: '#FF9500',
+        deadline: '2026-09-15',
+        status: 'done',
+        progress: 100,
+        icon: 'camera',
+        bg: 'linear-gradient(135deg,#FF9500,#FFB800)',
+    },
+];
+
+// ===== 我的小目标 =====
+const GOALS = [
+    {
+        id: 1,
+        title: '减重 10 斤',
+        desc: '控制饮食 + 每周 3 次有氧',
+        current: 4,
+        target: 10,
+        unit: '斤',
+        deadline: '2026-10-31',
+        icon: 'dumbbell',
         bg: 'linear-gradient(135deg,#FF2D55,#FF6B6B)',
+    },
+    {
+        id: 2,
+        title: '读 20 本书',
+        desc: '每月至少读完 2 本，做好读书笔记',
+        current: 7,
+        target: 20,
+        unit: '本',
+        deadline: '2026-12-31',
+        icon: 'star',
+        bg: 'linear-gradient(135deg,#5856D6,#7B79F0)',
+    },
+    {
+        id: 3,
+        title: '存 5 万元',
+        desc: '每月固定储蓄 + 理财，目标年底达成',
+        current: 26000,
+        target: 50000,
+        unit: '元',
+        deadline: '2026-12-31',
+        icon: 'money',
+        bg: 'linear-gradient(135deg,#00C7BE,#30D5C8)',
+    },
+];
+
+// ===== 我的日记 =====
+const DIARY = [
+    {
+        id: 1,
+        date: '2026-08-21',
+        title: '项目上线前的冲刺',
+        content: '今天把最后两个模块联调通了，虽然累但很有成就感。明天开始内测，希望一切顺利。',
+        mood: '😊',
+        weather: '☀️',
+        tags: ['工作', '冲刺'],
+    },
+    {
+        id: 2,
+        date: '2026-08-20',
+        title: '和朋友的小聚',
+        content: '晚上和大学室友吃了顿火锅，聊了很多以前的事，时间过得真快。',
+        mood: '🥰',
+        weather: '🌙',
+        tags: ['生活', '朋友'],
+    },
+    {
+        id: 3,
+        date: '2026-08-18',
+        title: '跑步打卡第 15 天',
+        content: '今天跑完了 5 公里，配速终于进 6 分了，继续加油！',
+        mood: '💪',
+        weather: '🌤️',
+        tags: ['运动', '健康'],
     },
 ];
 

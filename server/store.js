@@ -16,6 +16,9 @@ let data = {
   users: [],      // { id, identifier, name, salt, hash, createdAt }
   reminders: [],  // { id, userId, type, title, desc, time, date, repeat, method, enabled, icon, createdAt, updatedAt }
   trips: [],      // { id, userId, title, status, startDate, endDate, days, destination, budget, spent, seed, progress, schedule, createdAt }
+  goals: [],      // { id, userId, title, desc, target, progress, deadline, status, createdAt, updatedAt }
+  plans: [],      // { id, userId, title, content, status, dueDate, createdAt, updatedAt }
+  diary: [],      // { id, userId, title, content, mood, date, createdAt, updatedAt }
 };
 
 // ===== 加载 / 持久化 =====
@@ -26,7 +29,10 @@ function load() {
       data.users = Array.isArray(raw.users) ? raw.users : [];
       data.reminders = Array.isArray(raw.reminders) ? raw.reminders : [];
       data.trips = Array.isArray(raw.trips) ? raw.trips : [];
-      console.log(`[store] 已加载本地数据：用户 ${data.users.length} 个，提醒 ${data.reminders.length} 条，行程 ${data.trips.length} 条`);
+      data.goals = Array.isArray(raw.goals) ? raw.goals : [];
+      data.plans = Array.isArray(raw.plans) ? raw.plans : [];
+      data.diary = Array.isArray(raw.diary) ? raw.diary : [];
+      console.log(`[store] 已加载本地数据：用户 ${data.users.length} 个，提醒 ${data.reminders.length} 条，行程 ${data.trips.length} 条，目标 ${data.goals.length} 个，计划 ${data.plans.length} 条，日记 ${data.diary.length} 篇`);
     } else {
       console.log('[store] 未发现本地数据库，将创建新的空库');
     }
@@ -185,6 +191,89 @@ function deleteTrip(userId, id) {
   return removed;
 }
 
+// ===== 小目标（按用户隔离） =====
+function getGoals(userId) { return data.goals.filter(g => g.userId === userId); }
+function createGoal(userId, g) {
+  const item = {
+    id: g.id != null ? g.id : Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
+    userId,
+    title: g.title || '小目标',
+    desc: g.desc || '',
+    target: g.target || '',
+    progress: typeof g.progress === 'number' ? g.progress : 0,
+    deadline: g.deadline || '',
+    status: g.status || 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  data.goals.push(item); persist(); return item;
+}
+function updateGoal(userId, id, patch) {
+  const g = data.goals.find(x => x.userId === userId && String(x.id) === String(id));
+  if (!g) return null;
+  ['title', 'desc', 'target', 'progress', 'deadline', 'status'].forEach(k => { if (patch[k] !== undefined) g[k] = patch[k]; });
+  g.updatedAt = new Date().toISOString(); persist(); return g;
+}
+function deleteGoal(userId, id) {
+  const idx = data.goals.findIndex(x => x.userId === userId && String(x.id) === String(id));
+  if (idx < 0) return null;
+  const removed = data.goals.splice(idx, 1)[0]; persist(); return removed;
+}
+
+// ===== 计划（按用户隔离） =====
+function getPlans(userId) { return data.plans.filter(p => p.userId === userId); }
+function createPlan(userId, p) {
+  const item = {
+    id: p.id != null ? p.id : Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
+    userId,
+    title: p.title || '计划',
+    content: p.content || '',
+    status: p.status || 'pending',
+    dueDate: p.dueDate || '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  data.plans.push(item); persist(); return item;
+}
+function updatePlan(userId, id, patch) {
+  const p = data.plans.find(x => x.userId === userId && String(x.id) === String(id));
+  if (!p) return null;
+  ['title', 'content', 'status', 'dueDate'].forEach(k => { if (patch[k] !== undefined) p[k] = patch[k]; });
+  p.updatedAt = new Date().toISOString(); persist(); return p;
+}
+function deletePlan(userId, id) {
+  const idx = data.plans.findIndex(x => x.userId === userId && String(x.id) === String(id));
+  if (idx < 0) return null;
+  const removed = data.plans.splice(idx, 1)[0]; persist(); return removed;
+}
+
+// ===== 日记（按用户隔离） =====
+function getDiaries(userId) { return data.diary.filter(d => d.userId === userId); }
+function createDiary(userId, d) {
+  const item = {
+    id: d.id != null ? d.id : Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
+    userId,
+    title: d.title || '日记',
+    content: d.content || '',
+    mood: d.mood || '平静',
+    date: d.date || new Date().toISOString().slice(0, 10),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  data.diary.push(item); persist(); return item;
+}
+function updateDiary(userId, id, patch) {
+  const d = data.diary.find(x => x.userId === userId && String(x.id) === String(id));
+  if (!d) return null;
+  ['title', 'content', 'mood', 'date'].forEach(k => { if (patch[k] !== undefined) d[k] = patch[k]; });
+  d.updatedAt = new Date().toISOString(); persist(); return d;
+}
+function deleteDiary(userId, id) {
+  const idx = data.diary.findIndex(x => x.userId === userId && String(x.id) === String(id));
+  if (idx < 0) return null;
+  const removed = data.diary.splice(idx, 1)[0]; persist(); return removed;
+}
+
 module.exports = {
   load,
   persist,
@@ -201,4 +290,16 @@ module.exports = {
   getTrips,
   createTrip,
   deleteTrip,
+  getGoals,
+  createGoal,
+  updateGoal,
+  deleteGoal,
+  getPlans,
+  createPlan,
+  updatePlan,
+  deletePlan,
+  getDiaries,
+  createDiary,
+  updateDiary,
+  deleteDiary,
 };
