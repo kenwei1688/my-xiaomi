@@ -1,10 +1,10 @@
-# Railway 只部署运行所需文件，排除无关的本地构建/大文件
-android-app/
-miniprogram/
+# 后端构建上下文排除（当 Railway Root Directory=后端源码 时生效，路径相对 后端源码/）
 deploy/
-生活小秘-全平台交付包/
+app/
+server/
+data/
+node_modules/
+.env
 *.apk
 *.zip
-node_modules/
-data/
-.env
+*.aab
