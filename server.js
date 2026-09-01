@@ -9,6 +9,7 @@ import { sign, verify } from './lib/auth.js';
 import { handleMessage } from './lib/engine.js';
 import { confirmBooking, typeLabel } from './lib/booking.js';
 import { providerName, providerStatus } from './lib/providers/index.js';
+import { cnParts, cnDate } from './lib/nlu.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -68,23 +69,25 @@ function authUserId(req) {
 
 // ---- 提醒调度 ----
 function nextOccurrence(r, from) {
-  const d = new Date(from);
-  if (r.repeat === 'daily') { d.setDate(d.getDate() + 1); }
+  // 按"北京时间日历"推进下一次触发，避免云端 UTC 环境下的日期漂移
+  const p = cnParts(from);
+  let y = p.y, m = p.m, day = p.day;
+  if (r.repeat === 'daily') { day += 1; }
   else if (r.repeat === 'weekday') {
-    do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    do { day += 1; } while (cnParts(cnDate(y, m, day)).dow === 0 || cnParts(cnDate(y, m, day)).dow === 6);
   } else if (r.repeat === 'weekly') {
     if (r.repeatWeekday != null) {
-      let diff = (r.repeatWeekday - d.getDay() + 7) % 7; if (diff === 0) diff = 7;
-      d.setDate(d.getDate() + diff);
-    } else d.setDate(d.getDate() + 7);
+      let diff = (r.repeatWeekday - p.dow + 7) % 7; if (diff === 0) diff = 7;
+      day += diff;
+    } else day += 7;
   } else if (r.repeat === 'monthly') {
-    d.setMonth(d.getMonth() + 1);
-    if (r.repeatMonthDay) d.setDate(Math.min(r.repeatMonthDay, 28));
+    m += 1; if (m > 12) { m = 1; y += 1; }
+    if (r.repeatMonthDay) day = Math.min(r.repeatMonthDay, 28);
   } else if (r.repeat === 'yearly') {
-    d.setFullYear(d.getFullYear() + 1);
-    if (r.repeatMonthDay) d.setDate(r.repeatMonthDay);
+    y += 1;
+    if (r.repeatMonthDay) day = r.repeatMonthDay;
   } else return null;
-  return d;
+  return cnDate(y, m, day, p.h, p.mi);
 }
 
 function reconcileOnStart() {
