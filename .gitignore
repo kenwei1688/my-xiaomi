@@ -29,3 +29,6 @@ Android原生工程/android-app/local.properties
 *~
 *.tmp
 ._*
+
+# ========= 转译前前端备份（git 历史可追溯旧版，不入库） =========
+Android原生工程/android-app/app/src/main/assets/web/js/.backup-es2015/
